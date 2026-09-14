@@ -45,3 +45,52 @@ class IngestResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
+
+
+class GraphNode(BaseModel):
+    id: str
+    kind: str  # component | parameter | observable | context
+    activation: float = 0.0  # latest diagnosis probability, if this node is a component
+
+
+class GraphEdge(BaseModel):
+    source: str
+    target: str
+    gain: float
+    lag_h: float
+    confidence: float  # Beta(alpha,beta) posterior mean, eq 23.4
+
+
+class GraphTopologyResponse(BaseModel):
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+
+
+class HealthBreakdownResponse(BaseModel):
+    health_index: float
+    contributions: dict[str, float]  # per-channel deficit contribution, simengine.twin.health_index.decompose()
+
+
+class MissionSegmentRequest(BaseModel):
+    name: str
+    duration_h: float
+    power_pct: float = 100.0
+
+
+class MissionPlanRequest(BaseModel):
+    segments: list[MissionSegmentRequest]
+
+
+class MissionSegmentResult(BaseModel):
+    name: str
+    duration_h: float
+    power_pct: float
+    survival_probability: float
+
+
+class MissionPlanResponse(BaseModel):
+    segments: list[MissionSegmentResult]
+    overall_survival_probability: float
+    overall_tier: str
+    recommended_action: str
+    total_duration_h: float

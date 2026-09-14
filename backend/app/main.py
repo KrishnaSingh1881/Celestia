@@ -21,12 +21,20 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from backend.app.pipeline import EngineSession, api_context_to_twin_context
 from backend.app.schemas import (
+    GraphEdge,
+    GraphNode,
+    GraphTopologyResponse,
+    HealthBreakdownResponse,
     HealthResponse,
     IngestBatchRequest,
     IngestRequest,
     IngestResponse,
+    MissionPlanRequest,
+    MissionPlanResponse,
+    MissionSegmentResult,
     PipelineResult,
 )
+from simengine.twin.mission_risk import AdvisoryTierClassifier, mission_survival_probability
 
 app = FastAPI(title="AeroTwin backend (Celestia SIH26054)")
 
@@ -36,6 +44,7 @@ app = FastAPI(title="AeroTwin backend (Celestia SIH26054)")
 _session = EngineSession()
 _active_websockets: set[WebSocket] = set()
 _latest_result: PipelineResult | None = None
+_mission_plan: MissionPlanResponse | None = None
 
 
 def _run_one(frame: IngestRequest) -> PipelineResult:
@@ -128,7 +137,104 @@ async def ws_telemetry(websocket: WebSocket):
 async def reset_session():
     """Starts a fresh EngineSession (new twin state, cleared detection
     trackers) - useful between demo scenarios."""
-    global _session, _latest_result
+    global _session, _latest_result, _mission_plan
     _session = EngineSession()
     _latest_result = None
+    _mission_plan = None
     return {"status": "reset"}
+
+
+# GCS tier (causal graph inference, 0.1-1Hz per Table 13) - the graph
+# TOPOLOGY itself changes rarely (only when record_maintenance_event() runs),
+# so this is safe to poll at a low rate from the frontend; per-node
+# `activation` is refreshed from whatever the latest diagnosis found.
+@app.get("/api/graph/topology", response_model=GraphTopologyResponse)
+async def graph_topology() -> GraphTopologyResponse:
+    graph = _session.graph
+    activation: dict[str, float] = {}
+    if _latest_result is not None:
+        for hyp in _latest_result.diagnosis.hypotheses:
+            activation[hyp.cause] = hyp.probability
+
+    nodes = [
+        GraphNode(id=name, kind=node.kind, activation=activation.get(name, 0.0))
+        for name, node in graph.nodes.items()
+    ]
+    edges = [
+        GraphEdge(
+            source=edge.src, target=edge.dst, gain=edge.gain, lag_h=edge.lag_h,
+            confidence=edge.alpha / (edge.alpha + edge.beta),
+        )
+        for edge in graph.edges.values()
+    ]
+    return GraphTopologyResponse(nodes=nodes, edges=edges)
+
+
+# GCS tier - health index decomposition is derived from the latest residual,
+# already computed by the edge-tier twin step; this just re-exposes it.
+@app.get("/api/health/breakdown", response_model=HealthBreakdownResponse)
+async def health_breakdown() -> HealthBreakdownResponse:
+    if _latest_result is None:
+        return HealthBreakdownResponse(health_index=100.0, contributions={})
+    contributions = _session.health_index.decompose(_latest_result.residual.z)
+    return HealthBreakdownResponse(
+        health_index=_latest_result.risk.health_index, contributions=contributions
+    )
+
+
+# GCS tier (mission simulation/what-if, on-demand per Table 13). This is a
+# RISK ASSESSMENT for a planned profile (report eq 26.1-26.2), not a live
+# lat/lon flight simulator - it reuses the CURRENT engine's RUL as the
+# hazard driver for every segment, scaled by that segment's planned power
+# setting (a simple linear proxy: higher power -> higher wear/hazard rate).
+@app.post("/api/mission/plan", response_model=MissionPlanResponse)
+async def mission_plan(request: MissionPlanRequest) -> MissionPlanResponse:
+    global _mission_plan
+    rul_q50_h = _latest_result.rul.q50_h if _latest_result is not None else 200.0
+    rul_q05_h = _latest_result.rul.q05_h if _latest_result is not None else 100.0
+    health_index = _latest_result.risk.health_index if _latest_result is not None else 100.0
+    hazard_rate = 1.0 / max(rul_q50_h, 1e-3)
+
+    boundaries = [0.0]
+    seg_results: list[MissionSegmentResult] = []
+    for seg in request.segments:
+        t0 = boundaries[-1]
+        t1 = t0 + seg.duration_h
+        boundaries.append(t1)
+        power_mult = max(seg.power_pct, 1.0) / 100.0
+        seg_survival = mission_survival_probability(lambda _t: hazard_rate * power_mult, [t0, t1])
+        seg_results.append(
+            MissionSegmentResult(
+                name=seg.name, duration_h=seg.duration_h, power_pct=seg.power_pct,
+                survival_probability=seg_survival,
+            )
+        )
+
+    overall_survival = 1.0
+    for seg_result in seg_results:
+        overall_survival *= seg_result.survival_probability
+    total_duration_h = boundaries[-1]
+
+    tier_result = AdvisoryTierClassifier().classify(
+        HI=health_index,
+        persistent_residual=False,
+        coincidence_confirmed=False,
+        RUL_5pct_h=rul_q05_h,
+        remaining_mission_h=total_duration_h,
+        cascade_projected_to_limit=False,
+        is_knock_or_oil_pressure_class=False,
+    )
+
+    _mission_plan = MissionPlanResponse(
+        segments=seg_results, overall_survival_probability=overall_survival,
+        overall_tier=tier_result.tier, recommended_action=tier_result.message,
+        total_duration_h=total_duration_h,
+    )
+    return _mission_plan
+
+
+@app.get("/api/mission/plan")
+async def get_mission_plan():
+    if _mission_plan is None:
+        return None
+    return _mission_plan.model_dump()

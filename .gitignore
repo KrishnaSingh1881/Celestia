@@ -8,3 +8,4 @@ simengine/validation/data/
 node_modules/
 dist/
 .pytest_cache/
+Virtualengine-main
