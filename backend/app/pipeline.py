@@ -189,6 +189,7 @@ class EngineSession:
         risk = Risk(
             P_success=P_success, tier=tier_result.tier,
             recommended_action=tier_result.message, authority=tier_result.authority,
+            health_index=HI,
         )
 
         return prediction, residual, diagnosis, rul, risk

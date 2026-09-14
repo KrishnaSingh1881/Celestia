@@ -74,3 +74,4 @@ class Risk(BaseModel):
     tier: str
     recommended_action: str
     authority: str = "crew decides"
+    health_index: float = 100.0
