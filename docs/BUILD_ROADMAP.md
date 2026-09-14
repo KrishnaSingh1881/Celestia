@@ -37,6 +37,13 @@ invent file paths or names not listed here, do not merge phases.
 7. Python: 3.10+. Core dependencies: `numpy`, `scipy`, `pydantic` (v2), `pyyaml`,
    `fastapi`, `uvicorn`, `pytest`. Do not add other numerical/ML frameworks unless a
    phase explicitly calls for one.
+7a. TypeScript (Phase 18 only): `frontend/` is strict TypeScript end to end —
+   every file under `frontend/src/` is `.ts`/`.tsx`, never `.js`/`.jsx`, and
+   `tsconfig.json` has `"strict": true`. Package manager is `npm`
+   (`package-lock.json` committed; never add a `yarn.lock`/`pnpm-lock.yaml`).
+   Do not add a second frontend framework, a CSS-in-JS library, or a second
+   state-management library alongside Zustand unless a phase explicitly calls
+   for one.
 8. Every module gets a `tests/test_<module>.py` in the same phase it is created —
    never defer tests to a later phase.
 9. Commit at the end of every phase with a message naming the phase number and title.
@@ -113,7 +120,8 @@ uav-engine-twin/
       schemas.py                    # API request/response models
     requirements.txt
   frontend/
-    (React + Vite app; layout mirrors sihaimodel-main/frontend, see Phase 18)
+    (React + Vite + strict TypeScript app, npm-managed; layout informed by
+    sihaimodel-main/frontend's IA but every file is .ts/.tsx - see Phase 18)
 ```
 
 ---
@@ -1251,76 +1259,131 @@ the `Diagnosis.hypotheses` ranked list's top entry names the correct
 
 **Depends on**: Phase 17 (needs a running backend to point at).
 
-**Files**: new `frontend/` app (Vite + React), built by directly reusing
-`sihaimodel-main/frontend`'s structure and assets per the baseline analysis, not
-built from a blank slate.
+**Language/tooling constraint (non-negotiable, overrides anything below that
+looks otherwise)**: the new `frontend/` is **strict TypeScript, npm-managed**.
+Every file under `frontend/src/` is `.ts`/`.tsx` — there is no `.js`/`.jsx`
+anywhere in the new app. `sihaimodel-main/frontend` (the baseline) is itself a
+`.jsx`/`.js`-majority codebase with only a handful of `.ts` files
+(`ai/*.ts`, `config/engine.config.ts`, `types/engine.ts`) — when a step below
+says "port" or "copy" a baseline file, that always means **translate it to
+`.tsx`/`.ts` with real types while porting**, never carry over a `.jsx`/`.js`
+file as-is. `package.json` uses `npm` (`package-lock.json` committed, no
+`yarn.lock`/`pnpm-lock.yaml`).
+
+**Files**: new `frontend/` app (Vite + React + TypeScript), built by reusing
+`sihaimodel-main/frontend`'s structure and assets per the baseline analysis
+(retyped, not reused byte-for-byte), not built from a blank slate.
+
+**Dynamic-module architecture (design-in from the start, not a later
+refactor)**: this app must support adding new feature modules later without
+touching core files. Concretely:
+- Every route in `frontend/src/router.tsx` is loaded via `React.lazy(() =>
+  import("./pages/Foo"))` wrapped in `<Suspense>`, never a static top-level
+  import of every page — this is what makes each page a genuinely separate,
+  independently-loadable bundle chunk (Vite/Rollup code-splits automatically
+  on `import()`), not just a organizational convention.
+- Introduce `frontend/src/modules/registry.ts`: a typed registry
+  (`interface DashboardModule { id: string; title: string; component: () =>
+  Promise<{ default: React.ComponentType }>; icon?: string }`) that pages like
+  the Dashboard consult to render a list of panels/widgets. Ship the initial
+  built-in panels (KPI row, sensor list, 3D twin, alerts, trend charts) as
+  entries in this registry rather than hardcoded JSX in `Dashboard.tsx` — a
+  later "dynamic module" is then just a new registry entry pointing at a new
+  lazy-loaded component, added without editing `Dashboard.tsx` itself.
+- Keep `frontend/src/types/` as the single source of truth for every shape
+  crossing the network boundary, generated/hand-mirrored from
+  `simengine/twin/contracts.py`'s pydantic models
+  (`TelemetryFrame`, `Context`, `Prediction`, `Residual`, `Diagnosis`, `RUL`,
+  `Risk`) — every module, built-in or added later, imports these types rather
+  than redeclaring its own shapes for the same backend data.
 
 **Steps** (do these in order):
-1. Scaffold `frontend/` with the same stack as `sihaimodel-main/frontend/package.json`:
-   React 18, Vite, Tailwind, Zustand, react-router-dom v7, @react-three/fiber +
-   drei, recharts, framer-motion, lucide-react. Copy
-   `sihaimodel-main/frontend/tailwind.config.js` into the new `frontend/` as-is
-   (it is an already-good, reusable design system per the baseline analysis).
-2. Copy the route/page skeleton from `sihaimodel-main/frontend/src/router.jsx`
-   into the new `frontend/src/router.jsx`, RESOLVING the two known baseline
-   inconsistencies rather than reproducing them: (a) `Tasks.jsx` had no route in
-   the original — decide it is superseded by `MaintenancePage.jsx` and do not
-   port it; (b) `EngineViewPage.jsx` and `DigitalTwinPage.jsx` overlapped in
-   responsibility — merge them into one `/twin` route in the new app.
-3. Port the 3D digital twin: copy the sub-assembly decomposition, material
-   palette (`MAT` object), and animation-helper functions
-   (`thermalTarget`, `vibrationJitter`, `rpmToSpeed`/`easeRpm`) from
+1. Scaffold `frontend/` with `npm create vite@latest frontend -- --template
+   react-ts`, then add the same runtime dependencies as
+   `sihaimodel-main/frontend/package.json`: React 18, Tailwind, Zustand,
+   react-router-dom v7, @react-three/fiber + drei, recharts, framer-motion,
+   lucide-react, plus `@types/*` packages for anything without its own types.
+   Copy `sihaimodel-main/frontend/tailwind.config.js` into the new `frontend/`
+   as-is (it is an already-good, reusable design system per the baseline
+   analysis — a config file, not application code, so it needs no TS
+   conversion). Enable `"strict": true` in `frontend/tsconfig.json`.
+2. Build `frontend/src/router.tsx` (route skeleton informed by, not copied
+   from, `sihaimodel-main/frontend/src/router.jsx`), with every page
+   lazy-loaded per the dynamic-module architecture above. RESOLVE the two
+   known baseline inconsistencies rather than reproducing them: (a)
+   `Tasks.jsx` had no route in the original — decide it is superseded by
+   `MaintenancePage` and do not port it; (b) `EngineViewPage.jsx` and
+   `DigitalTwinPage.jsx` overlapped in responsibility — merge them into one
+   `/twin` route (`pages/TwinPage.tsx`) in the new app.
+3. Port the 3D digital twin as `frontend/src/Components/engine/EngineTwin3D.tsx`:
+   translate the sub-assembly decomposition, material palette (`MAT` object),
+   and animation-helper functions (`thermalTarget`, `vibrationJitter`,
+   `rpmToSpeed`/`easeRpm`) from
    `sihaimodel-main/frontend/src/Components/engine/Rotax912Twin.jsx` and
-   `Components/twin/engineAnimation.js` into the new
-   `frontend/src/Components/engine/EngineTwin3D.jsx` — these are pure rendering
-   primitives, safe to reuse verbatim. **Replace their data source**: instead of
-   the baseline's hand-offset per-cylinder CHT split (`cylCht` in the original,
-   a cosmetic scalar-offset hack) and the three-fixed-frequency vibration jitter,
-   drive the new component from the real per-cylinder `Prediction`/`Residual`
-   values returned by the Phase 17 backend (per-cylinder CHT/EGT are real outputs
-   of the Tier B twin by this point; vibration jitter amplitude should be driven
-   by the real `extract_edge_features` RMS feature from Phase 7, not a synthetic
-   sine sum).
-4. Rebuild the Zustand store (`frontend/src/store/useEngineStore.js`) so it holds
-   a live WebSocket connection to the Phase 17 backend's `/ws/telemetry` and
-   stores the received `Prediction`/`Residual`/`Diagnosis`/`RUL`/`Risk` objects
-   directly (matching `contracts.py`'s field names) — DELETE the baseline's
-   inline `computePhysicsExpected`/`computeSOH` heuristic functions entirely;
-   the store should hold real backend output, not recompute a fake health score
-   client-side.
-5. Keep, port verbatim: `sihaimodel-main/frontend/src/lib/localDataSource.js`
-   (its `FIELD_ALIASES`, `normalizeRecord`, `RingBuffer`, and poller/WS/SSE
-   client classes are generic and framework-agnostic per the baseline analysis)
-   for any local-file/offline data source page; the `DigitalTwinPanel`'s
-   self-disclosure UX pattern (labeling model outputs like
-   "[SIMULATED ESTIMATE]" / a "Why this score?" breakdown modal) — reimplement
-   this pattern against the REAL `HealthIndex.decompose()` output from Phase 16,
-   since that call already returns exactly the per-channel breakdown this UI
-   pattern needs.
+   `Components/twin/engineAnimation.js` into typed TSX/TS — these are pure
+   rendering primitives, safe to reuse verbatim in logic, but give every prop,
+   the `MAT` object, and every helper function an explicit type (no `any`).
+   **Replace their data source**: instead of the baseline's hand-offset
+   per-cylinder CHT split (`cylCht` in the original, a cosmetic scalar-offset
+   hack) and the three-fixed-frequency vibration jitter, drive the new
+   component from the real per-cylinder `Prediction`/`Residual` values
+   returned by the Phase 17 backend (per-cylinder CHT/EGT are real outputs of
+   the Tier B twin by this point; vibration jitter amplitude should be driven
+   by the real `extract_edge_features` RMS feature from Phase 7, not a
+   synthetic sine sum).
+4. Build the Zustand store as `frontend/src/store/useEngineStore.ts` (typed:
+   `create<EngineStoreState>()(...)`) so it holds a live WebSocket connection
+   to the Phase 17 backend's `/ws/telemetry` and stores the received
+   `Prediction`/`Residual`/`Diagnosis`/`RUL`/`Risk` objects directly, typed
+   against `frontend/src/types/contracts.ts` (mirroring `contracts.py`) — DO
+   NOT port the baseline's inline `computePhysicsExpected`/`computeSOH`
+   heuristic functions at all; the store holds real backend output, not a
+   recomputed fake health score client-side.
+5. Port, translating to TypeScript: `sihaimodel-main/frontend/src/lib/localDataSource.js`
+   -> `frontend/src/lib/localDataSource.ts` (its `FIELD_ALIASES`,
+   `normalizeRecord`, `RingBuffer`, and poller/WS/SSE client classes are
+   generic and framework-agnostic per the baseline analysis — give them
+   proper generic types, e.g. `RingBuffer<T>`) for any local-file/offline data
+   source page; the `DigitalTwinPanel`'s self-disclosure UX pattern (labeling
+   model outputs like "[SIMULATED ESTIMATE]" / a "Why this score?" breakdown
+   modal) — reimplement this pattern in TSX against the REAL
+   `HealthIndex.decompose()` output from Phase 16, since that call already
+   returns exactly the per-channel breakdown this UI pattern needs.
 6. Do NOT port: the baseline's `simulation/*.ts` and `ai/*.ts` dead-code layer
    (it was never wired into the app and is superseded entirely by the real
-   `simengine` backend); the baseline's `PRESETS`/scripted fault-propagation
-   log strings (replace "run a fault scenario" in the new
+   `simengine` backend — porting it would in fact be reintroducing dead code
+   into an otherwise all-TypeScript app, so there is no conversion step for
+   it, only omission); the baseline's `PRESETS`/scripted fault-propagation log
+   strings (replace "run a fault scenario" in the new
    `RunSimulationDrawer`-equivalent with an API call that asks the Phase 17
    backend to run an actual Phase 11 fault-injection scenario against the
    simulation and stream real resulting telemetry, not canned text).
 7. Wire every page from the baseline's IA (Dashboard, Telemetry, Analytics,
-   Maintenance, Settings, Sensors, Faults/simulate, Health, Connection, Startup,
-   Mission Control) to the corresponding real backend data: KPI tiles and the
-   health index number to `HealthIndex`/`decompose()`; the alert feed to
+   Maintenance, Settings, Sensors, Faults/simulate, Health, Connection,
+   Startup, Mission Control) — each its own lazy-loaded route/module per the
+   architecture above — to the corresponding real backend data: KPI tiles and
+   the health index number to `HealthIndex`/`decompose()`; the alert feed to
    `Diagnosis.hypotheses`; RUL displays to `RUL{q05,q50,q95,driver}`;
    maintenance tasks to graph `record_maintenance_event` triggers; mission
    control's go/no-go to `Risk{P_success, tier, recommended_action}`.
 
-**Definition of Done**: `npm run dev` in `frontend/` starts the app against a
-running Phase 17 backend; opening the dashboard shows live-updating values
-sourced from an actual backend WebSocket message (verified by injecting a known
-synthetic telemetry frame via the backend's ingest endpoint and confirming the
-UI updates to match, e.g. health index number changes); running a fault
-injection from the UI's simulate page results in the 3D twin's thermal glow and
-the health index visibly reflecting that fault within a few seconds; no
-component in `frontend/src/` imports from a `simulation/` or `ai/` directory
-carried over unmodified from the baseline (grep check).
+**Definition of Done**: `find frontend/src -name "*.js" -o -name "*.jsx"`
+returns nothing (strict-TypeScript check); `npx tsc --noEmit` in `frontend/`
+passes with zero errors under `"strict": true`; `npm run dev` in `frontend/`
+starts the app against a running Phase 17 backend; opening the dashboard shows
+live-updating values sourced from an actual backend WebSocket message
+(verified by injecting a known synthetic telemetry frame via the backend's
+ingest endpoint and confirming the UI updates to match, e.g. health index
+number changes); running a fault injection from the UI's simulate page results
+in the 3D twin's thermal glow and the health index visibly reflecting that
+fault within a few seconds; no component in `frontend/src/` imports from a
+`simulation/` or `ai/` directory carried over unmodified from the baseline
+(grep check); every entry under `frontend/src/pages/` is referenced in
+`router.tsx` only via `React.lazy(() => import(...))`, never a static
+top-level import (grep check for `^import.*from ["']\.\/pages`); adding a new
+dummy panel to `modules/registry.ts` and having it appear on the Dashboard
+requires editing only the registry file, not `Dashboard.tsx` itself
+(the concrete proof that "dynamic modules" actually works).
 
 ---
 
