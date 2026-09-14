@@ -1,6 +1,6 @@
 <div align="center">
 
-# AeroTwin — Celestia (SIH26054)
+# Celestia (SIH26054)
 
 ### A physics-grounded digital twin for a MALE-UAV aero piston engine
 
