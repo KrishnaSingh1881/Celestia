@@ -1,0 +1,181 @@
+# Celestia (SIH26054) fault library - Table 6.
+# 21 named failure modes + the implicit 22nd "healthy" state (no entry below;
+# healthy = every parameter at its calibrated/confirmed-normal value, severity 0).
+#
+# Each entry:
+#   name                  - unique id, used by faults/injector.py and campaign.py
+#   parameter_path        - dotted path into the shared health-parameter vector
+#                           theta (defined once degradation.py/Phase 8 exists)
+#   equation_ref          - report equation(s) this fault perturbs
+#   first_mover_channels  - sensor channel(s) expected to move first / most
+#   discriminator_rule    - free-text rule distinguishing this fault from its
+#                           nearest neighbours; almost always a relationship
+#                           between >= 2 channels, not a level on one
+#   onset_timescale_hours: [min, max] - or "instant"/"seconds" as a string when
+#                           the report gives a qualitative timescale instead of
+#                           an hours range
+
+faults:
+  - name: cooling_degradation
+    parameter_path: theta.cooling.h_ext_A
+    equation_ref: "5.4"
+    first_mover_channels: [coolant_temp, CHT]
+    discriminator_rule: "coolant_temp and CHT rise together; EGT stays flat"
+    onset_timescale_hours: [10, 100]
+
+  - name: charge_air_cooling_loss
+    parameter_path: theta.turbo.intercooler_effectiveness
+    equation_ref: "6.5"
+    first_mover_channels: [IAT]
+    discriminator_rule: "IAT rises while boost stays normal; knock integral I_k rises"
+    onset_timescale_hours: [10, 100]
+
+  - name: injector_clogging
+    parameter_path: theta.fuel.CdA_inj
+    equation_ref: "4.3, 6.2"
+    first_mover_channels: [EGT_per_cylinder]
+    discriminator_rule: "single-cylinder EGT split; rail pressure high, flow low"
+    onset_timescale_hours: [1, 20]
+
+  - name: fuel_pump_degradation
+    parameter_path: theta.fuel.pump_flow
+    equation_ref: "8.1"
+    first_mover_channels: [fuel_rail_pressure]
+    discriminator_rule: "all cylinders equal (not one-off); lambda rises"
+    onset_timescale_hours: [1, 50]
+
+  - name: fuel_restriction
+    parameter_path: theta.fuel.gallery_Rh
+    equation_ref: "6.2"
+    first_mover_channels: [fuel_rail_pressure, fuel_flow]
+    discriminator_rule: "pressure and flow drop together"
+    onset_timescale_hours: "min-h"
+
+  - name: ignition_weakening
+    parameter_path: theta.combustion.burn_duration
+    equation_ref: "4.1"
+    first_mover_channels: [EGT, cylinder_pressure_peak]
+    discriminator_rule: "EGT rises, p_max falls; blow-by signature flat"
+    onset_timescale_hours: [10, 200]
+
+  - name: misfire
+    parameter_path: theta.combustion.burned_fraction_override
+    equation_ref: "4.1"
+    first_mover_channels: [vibration_order_0p5x]
+    discriminator_rule: "0.5x vibration order locked to one cylinder's firing phase"
+    onset_timescale_hours: "instant"
+
+  - name: detonation_knock
+    parameter_path: theta.combustion.knock_integral
+    equation_ref: "4.5"
+    first_mover_channels: [knock_band_energy]
+    discriminator_rule: "CHT rises, EGT falls (heat retained in-cylinder, not exhausted)"
+    onset_timescale_hours: "seconds"
+
+  - name: ring_bore_wear
+    parameter_path: theta.sealing.CdA_blowby
+    equation_ref: "6.4"
+    first_mover_channels: [cylinder_pressure_peak]
+    discriminator_rule: "p_max falls with EGT rise + oil consumption + crankcase pressure rise"
+    onset_timescale_hours: [100, 1000]
+
+  - name: valve_leakage
+    parameter_path: theta.valvetrain.CdA_leak
+    equation_ref: "6.1, 6.4"
+    first_mover_channels: [volumetric_efficiency]
+    discriminator_rule: "eta_v falls at fixed MAP; single-cylinder EGT rise; no crankcase pressure signal"
+    onset_timescale_hours: [50, 500]
+
+  - name: valve_timing_drift
+    parameter_path: theta.valvetrain.IVC_EVO_shift
+    equation_ref: "3.2, 6.1"
+    first_mover_channels: [volumetric_efficiency]
+    discriminator_rule: "eta_v-vs-speed shape changes; speed-dependent, not load-dependent"
+    onset_timescale_hours: [200, 1000]
+
+  - name: turbo_compressor_fouling
+    parameter_path: theta.turbo.eta_c
+    equation_ref: "6.5"
+    first_mover_channels: [boost_pressure]
+    discriminator_rule: "boost deficit; compressor outlet temp rises at same pressure ratio"
+    onset_timescale_hours: [50, 500]
+
+  - name: turbo_bearing_wear
+    parameter_path: theta.turbo.eta_m
+    equation_ref: "6.7"
+    first_mover_channels: [turbo_spoolup_time]
+    discriminator_rule: "transient-only signature (spool-up time), steady state unaffected"
+    onset_timescale_hours: [20, 200]
+
+  - name: wastegate_sticking
+    parameter_path: theta.turbo.CdA_wastegate
+    equation_ref: "6.2"
+    first_mover_channels: [MAP]
+    discriminator_rule: "boost does not track throttle position"
+    onset_timescale_hours: "instant"
+
+  - name: oil_pump_wear
+    parameter_path: theta.lube.eta_vol_pump
+    equation_ref: "8.1"
+    first_mover_channels: [oil_pressure]
+    discriminator_rule: "pressure loss scales with speed, is temperature-independent"
+    onset_timescale_hours: [100, 1000]
+
+  - name: oil_leak
+    parameter_path: theta.lube.oil_mass
+    equation_ref: "8.1, 8.5"
+    first_mover_channels: [oil_pressure, oil_temp]
+    discriminator_rule: "pressure falls AND temperature rises together"
+    onset_timescale_hours: "min-h"
+
+  - name: oil_degradation
+    parameter_path: theta.lube.vogel_K_theta1
+    equation_ref: "8.3"
+    first_mover_channels: [oil_pressure, oil_temp]
+    discriminator_rule: "pressure-temperature curve departs from nominal; neither channel alone out of limits"
+    onset_timescale_hours: [100, 500]
+
+  - name: gallery_blockage
+    parameter_path: theta.lube.local_gallery_Rh
+    equation_ref: "8.2"
+    first_mover_channels: [oil_pressure]
+    discriminator_rule: "pressure rises (counter-intuitive sign, not a fall)"
+    onset_timescale_hours: [1, 100]
+
+  - name: main_rod_bearing_wear
+    parameter_path: theta.bearings.clearance_c
+    equation_ref: "7.3, 8.4"
+    first_mover_channels: [oil_pressure, oil_temp, vibration_order_1x]
+    discriminator_rule: "3-channel coincidence: pressure falls, temperature rises, 1x vibration rises together"
+    onset_timescale_hours: [50, 500]
+
+  - name: gearbox_tooth_wear
+    parameter_path: theta.gearbox.eta_g
+    equation_ref: "7.5, 9.2"
+    first_mover_channels: [vibration_gear_mesh_sidebands]
+    discriminator_rule: "gear-mesh sidebands rise; engine-side channels stay clean"
+    onset_timescale_hours: [100, 1000]
+
+  - name: crank_rod_fatigue
+    parameter_path: theta.structure.stiffness_balance
+    equation_ref: "10.4"
+    first_mover_channels: [vibration_order_1x, vibration_order_2x]
+    discriminator_rule: "1x and 2x order growth with no accompanying thermal/flow residual"
+    onset_timescale_hours: "slow-to-abrupt"
+
+
+# Sensor nuisances are NOT part of the 21-row physical fault library above: they
+# perturb the OBSERVATION model only (the true engine state, theta, is untouched -
+# parameter_path is null throughout). Table 10's DOE "Fault mode" axis therefore
+# counts these 21 physical faults (+ healthy) separately from its "Sensor nuisance"
+# axis (none/drift/bias/noise-increase/dropout), which is what this section
+# encodes. Concrete corruption magnitudes live in Phase 12 (simengine/sensors/) per
+# report Table 11; this entry exists so faults/campaign.py can draw "sensor
+# nuisance" as its own categorical DOE axis and co-occur with any of the 21 above.
+sensor_nuisances:
+  - name: sensor_drift_bias_stuck
+    parameter_path: null   # observation-model-only fault: the TRUE state is untouched
+    equation_ref: "17.1"
+    first_mover_channels: [any_single_channel]
+    discriminator_rule: "exactly one residual moves; its physically-coupled companion channels stay silent (see twin/discriminator.py)"
+    onset_timescale_hours: "any"

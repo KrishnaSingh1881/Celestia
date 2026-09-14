@@ -1,0 +1,30 @@
+[project]
+name = "aerotwin"
+version = "0.1.0"
+description = "Celestia (SIH26054) physics, estimation and diagnosis engine for a UAV aero piston engine digital twin, plus its backend service"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pydantic>=2",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+backend = [
+    "fastapi",
+    "uvicorn",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["simengine*", "backend*"]
+
+[tool.pytest.ini_options]
+testpaths = ["simengine/tests", "simengine/validation", "backend/tests"]

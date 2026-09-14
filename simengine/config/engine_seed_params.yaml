@@ -1,0 +1,82 @@
+# Celestia (SIH26054) seed parameter set.
+# Transcribed from research/Celestia_SIH26054_Engine_Physics_and_Simulation_Engine.html
+# Table 1 (reference engine) and Table 15 (seed parameter values), and cross-checked
+# against research/celestia_cycle_model_reference.py.
+#
+# Every parameter is tagged by calibration class (see report section 15.1):
+#   fixed_from_spec        - manufacturer published data, never fitted
+#   fixed_from_literature   - literature/correlation constants, fitted only within
+#                             an uncertainty band if ever adjusted
+#   fitted                  - free parameters identified in simengine/calibration
+#
+# Units are SI unless a "_display" suffixed sibling key gives a human unit for
+# reference only. Physics code must read the SI keys, never the *_display ones.
+
+reference_engine:
+  name: "Rotax 914-class (SIH26054 reference)"
+  configuration: "4-cylinder horizontally opposed, 4-stroke, spark ignition, turbocharged"
+  rated_points:
+    takeoff:
+      rpm: 5800
+      MAP_Pa: 132000.0
+      MAP_inHg_display: 39.0
+      lambda: 0.85
+      power_W_published: 84500.0
+      limit_minutes: 5
+    max_continuous:
+      rpm: 5500
+      MAP_Pa: 120000.0
+      MAP_inHg_display: 35.4
+      lambda: 0.88
+      power_W_published: 73500.0
+    cruise_75pct:
+      rpm: 5000
+      MAP_Pa: 105000.0
+      lambda: 0.95
+      power_W_published: 55100.0
+  peak_torque_Nm_shape_check: 144.0
+  peak_torque_rpm_shape_check: 4900
+  critical_altitude_m: 4500.0
+  TBO_hours: 2000.0
+
+fixed_from_spec:
+  bore_m: 0.0795                 # B
+  stroke_m: 0.0610                # S
+  conrod_length_m: 0.1115         # l / lrod, l/a ~= 3.66
+  n_cylinders: 4                  # ncyl
+  compression_ratio: 9.0           # r_c
+  gear_ratio: 2.43                 # i, PSRU reduction
+  IVC_deg_ATDC: -140.0
+  EVO_deg_ATDC: 140.0
+
+fixed_from_literature:
+  gas_constant_J_per_kgK: 287.0        # Rg
+  fuel_LHV_J_per_kg: 43500000.0        # LHV, avgas/mogas
+  stoich_AFR: 14.6                      # AFRs
+  wiebe_aw: 5.0
+  wiebe_mw: 2.0
+  woschni_C1: 2.28
+  woschni_C2: 0.00324
+  gamma_ref_intercept: 1.38             # gamma_of_T(T) = a - b*(T-300)
+  gamma_ref_slope: 0.00006
+  ISA_lapse_rate_K_per_m: 0.0065        # L
+  ISA_T0_K: 288.15
+  ISA_p0_Pa: 101325.0
+  ISA_g: 9.80665
+  cusum_k_slack_sigma: 0.5
+  cusum_h: 6.0
+
+fitted:
+  burn_duration_deg: 60.0          # dth_burn, Delta_theta
+  ignition_theta0_deg_ATDC: -22.0  # th_ign
+  combustion_efficiency: 0.94      # eta_c, applied on top of the O2 limit
+  wall_temperature_K: 450.0        # Twall, node-coupled in the full thermal network
+  chen_flynn_Af_Pa: 90000.0        # A
+  chen_flynn_Bf: 0.012             # Bc
+  chen_flynn_Cf: 2000.0            # Cc
+  chen_flynn_Df: 120.0             # Dc
+  pmep_Pa: 25000.0                 # assumed PMEP
+
+numerics:
+  crank_angle_step_deg: 0.2        # Delta_theta, RK4 (report section 14.1)
+  integration_method: "RK4"        # NOTE: reference script uses RK2; spec requires RK4
