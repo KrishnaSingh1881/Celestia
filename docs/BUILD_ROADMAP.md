@@ -69,6 +69,11 @@ uav-engine-twin/
       atmosphere.py                 # 6.8 ISA
       friction.py                   # 7.1-7.4 Chen-Flynn
       dynamics.py                   # 7.5-7.6 crank/prop
+      cycle.py                      # Phase 5 addition: assembles geometry/
+                                     # thermo/combustion/heat/flow/friction
+                                     # into one closed-cycle (IVC->EVO) Tier A
+                                     # run via solver.py's RK4 - this is what
+                                     # test_tier_a_regression.py exercises
       lube.py                       # 8.1-8.5
       vibration.py                  # 9.1-9.4
       degradation.py                # 10.1-10.6
