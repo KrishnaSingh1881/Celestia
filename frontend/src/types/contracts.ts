@@ -118,3 +118,38 @@ export interface MissionPlanResponse {
   recommended_action: string;
   total_duration_h: number;
 }
+
+export type FaultMode = 'none' | 'cooling_degradation' | 'oil_pump_wear';
+export type SeverityShape = 'linear' | 'exponential' | 'step';
+
+export interface FlightPhaseSpec {
+  name: string;
+  duration_h: number;
+  throttle_pct: number;
+}
+
+export interface FaultInjectionSpec {
+  mode: FaultMode;
+  onset_frac: number;
+  end_severity: number;
+  shape: SeverityShape;
+}
+
+export interface FlightSimulationStartRequest {
+  phases: FlightPhaseSpec[];
+  fault: FaultInjectionSpec;
+  real_seconds_per_sim_hour: number;
+}
+
+export interface FlightSimulationStatus {
+  running: boolean;
+  phase_name: string | null;
+  phase_index: number;
+  phase_count: number;
+  elapsed_h: number;
+  total_h: number;
+  progress_pct: number;
+  fault_mode: FaultMode | string;
+  fault_severity: number;
+  error: string | null;
+}

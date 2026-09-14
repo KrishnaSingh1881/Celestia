@@ -1,6 +1,9 @@
 import type {
   ChannelName,
   Context,
+  FaultInjectionSpec,
+  FlightPhaseSpec,
+  FlightSimulationStatus,
   GraphTopologyResponse,
   HealthBreakdownResponse,
   MissionPlanResponse,
@@ -69,4 +72,20 @@ export function postMissionPlan(segments: MissionSegmentRequest[]): Promise<Miss
 
 export function fetchMissionPlan(): Promise<MissionPlanResponse | null> {
   return getJson('/api/mission/plan');
+}
+
+export function startFlightSimulation(
+  phases: FlightPhaseSpec[],
+  fault: FaultInjectionSpec,
+  real_seconds_per_sim_hour: number,
+): Promise<FlightSimulationStatus> {
+  return postJson('/api/simulation/start', { phases, fault, real_seconds_per_sim_hour });
+}
+
+export function stopFlightSimulation(): Promise<FlightSimulationStatus> {
+  return postJson('/api/simulation/stop', {});
+}
+
+export function fetchFlightSimulationStatus(): Promise<FlightSimulationStatus> {
+  return getJson('/api/simulation/status');
 }

@@ -8,6 +8,8 @@ sihaimodel-main baseline had scattered across frontend and backend.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from simengine.twin.contracts import Context, Diagnosis, Prediction, Residual, Risk
@@ -94,3 +96,39 @@ class MissionPlanResponse(BaseModel):
     overall_tier: str
     recommended_action: str
     total_duration_h: float
+
+
+class FlightPhaseSpec(BaseModel):
+    name: str
+    duration_h: float = Field(gt=0)
+    throttle_pct: float = Field(ge=0.0, le=100.0)
+
+
+class FaultInjectionSpec(BaseModel):
+    """Only two modes carry a real theta hook into simengine.twin.meanvalue
+    (see backend/app/simulation.py's module docstring for why) - "none" is
+    always available as the honest healthy-flight option."""
+
+    mode: Literal["none", "cooling_degradation", "oil_pump_wear"] = "none"
+    onset_frac: float = Field(default=0.3, ge=0.0, le=1.0)
+    end_severity: float = Field(default=0.5, ge=0.0, le=1.0)
+    shape: Literal["linear", "exponential", "step"] = "linear"
+
+
+class FlightSimulationStartRequest(BaseModel):
+    phases: list[FlightPhaseSpec]
+    fault: FaultInjectionSpec = Field(default_factory=FaultInjectionSpec)
+    real_seconds_per_sim_hour: float = Field(default=90.0, gt=0.0)
+
+
+class FlightSimulationStatus(BaseModel):
+    running: bool
+    phase_name: str | None = None
+    phase_index: int = 0
+    phase_count: int = 0
+    elapsed_h: float = 0.0
+    total_h: float = 0.0
+    progress_pct: float = 0.0
+    fault_mode: str = "none"
+    fault_severity: float = 0.0
+    error: str | None = None

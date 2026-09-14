@@ -11,7 +11,7 @@ const VirtualTwin = lazy(() => import('./pages/VirtualTwin'));
 const Telemetry = lazy(() => import('./pages/Telemetry'));
 const Health = lazy(() => import('./pages/Health'));
 const MissionControl = lazy(() => import('./pages/MissionControl'));
-const FaultSimulation = lazy(() => import('./pages/FaultSimulation'));
+const FlightSimulation = lazy(() => import('./pages/FlightSimulation'));
 const SensorMonitoring = lazy(() => import('./pages/SensorMonitoring'));
 const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
 const DataConnectionPage = lazy(() => import('./pages/DataConnectionPage'));
@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
       { path: 'telemetry', element: <Telemetry /> },
       { path: 'health', element: <Health /> },
       { path: 'mission', element: <MissionControl /> },
-      { path: 'faults', element: <FaultSimulation /> },
+      { path: 'flight-simulation', element: <FlightSimulation /> },
       { path: 'sensors', element: <SensorMonitoring /> },
       { path: 'maintenance', element: <MaintenancePage /> },
       { path: 'connection', element: <DataConnectionPage /> },

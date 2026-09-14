@@ -134,3 +134,95 @@ def test_mission_plan_computes_per_segment_and_overall_survival():
     # GET reflects the most recently POSTed plan
     fetched = client.get("/api/mission/plan").json()
     assert fetched["total_duration_h"] == pytest.approx(1.0)
+
+
+def _wait_for_simulation_to_finish(client, timeout_s=15.0):
+    import time
+
+    deadline = time.monotonic() + timeout_s
+    status = client.get("/api/simulation/status").json()
+    while status["running"] and time.monotonic() < deadline:
+        time.sleep(0.2)
+        status = client.get("/api/simulation/status").json()
+    return status
+
+
+def test_simulation_start_runs_healthy_and_reports_progress():
+    with TestClient(app) as client:
+        client.post("/api/session/reset")
+        start = client.post(
+            "/api/simulation/start",
+            json={
+                "phases": [
+                    {"name": "Climb", "duration_h": 0.02, "throttle_pct": 100.0},
+                    {"name": "Cruise", "duration_h": 0.05, "throttle_pct": 65.0},
+                ],
+                "fault": {"mode": "none"},
+                "real_seconds_per_sim_hour": 5.0,
+            },
+        )
+        assert start.status_code == 200
+        assert start.json()["running"] is True
+
+        status = _wait_for_simulation_to_finish(client)
+        assert status["running"] is False
+        assert status["error"] is None
+        assert status["progress_pct"] == pytest.approx(100.0, abs=1.0)
+
+        # A healthy scripted flight must not surface a confident diagnosis -
+        # regression guard for a real bug found in development where the
+        # session-side twin started cold relative to an already-warmed-up
+        # truth twin and was misdiagnosed as cooling_degradation.
+        diagnosis = client.get("/api/diagnosis/latest").json()
+        top = diagnosis["hypotheses"][0] if diagnosis["hypotheses"] else None
+        assert top is None or top["probability"] < 0.5
+
+        risk = client.get("/api/mission-risk/latest").json()
+        assert risk["health_index"] == pytest.approx(100.0, abs=1.0)
+
+
+def test_simulation_with_cooling_fault_is_diagnosed_and_lowers_health():
+    with TestClient(app) as client:
+        client.post("/api/session/reset")
+        client.post(
+            "/api/simulation/start",
+            json={
+                "phases": [{"name": "Cruise", "duration_h": 0.12, "throttle_pct": 80.0}],
+                "fault": {"mode": "cooling_degradation", "onset_frac": 0.1, "end_severity": 0.6, "shape": "linear"},
+                "real_seconds_per_sim_hour": 5.0,
+            },
+        )
+        status = _wait_for_simulation_to_finish(client)
+        assert status["error"] is None
+
+        diagnosis = client.get("/api/diagnosis/latest").json()
+        top = diagnosis["hypotheses"][0]
+        assert top["cause"] == "cooling_degradation"
+        assert top["probability"] > 0.5
+
+        risk = client.get("/api/mission-risk/latest").json()
+        assert risk["health_index"] < 100.0
+
+
+def test_simulation_stop_halts_a_running_simulation():
+    with TestClient(app) as client:
+        client.post("/api/session/reset")
+        client.post(
+            "/api/simulation/start",
+            json={
+                "phases": [{"name": "Cruise", "duration_h": 5.0, "throttle_pct": 70.0}],
+                "real_seconds_per_sim_hour": 90.0,
+            },
+        )
+        assert client.get("/api/simulation/status").json()["running"] is True
+
+        stop = client.post("/api/simulation/stop")
+        assert stop.status_code == 200
+        assert stop.json()["running"] is False
+        assert client.get("/api/simulation/status").json()["running"] is False
+
+
+def test_simulation_start_rejects_empty_phase_list():
+    with TestClient(app) as client:
+        response = client.post("/api/simulation/start", json={"phases": []})
+        assert response.status_code == 422

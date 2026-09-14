@@ -17,11 +17,13 @@ from __future__ import annotations
 import asyncio
 import time
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.pipeline import EngineSession, api_context_to_twin_context
 from backend.app.schemas import (
+    FlightSimulationStartRequest,
+    FlightSimulationStatus,
     GraphEdge,
     GraphNode,
     GraphTopologyResponse,
@@ -35,6 +37,8 @@ from backend.app.schemas import (
     MissionSegmentResult,
     PipelineResult,
 )
+from backend.app.simulation import FlightPhase, FlightSimulator
+from simengine.twin.meanvalue import Context as TwinContext
 from simengine.twin.mission_risk import AdvisoryTierClassifier, mission_survival_probability
 
 app = FastAPI(title="AeroTwin backend (Celestia SIH26054)")
@@ -78,6 +82,29 @@ async def _broadcast(result: PipelineResult) -> None:
         except Exception:
             dead.add(ws)
     _active_websockets.difference_update(dead)
+
+
+def _reset_session_state() -> None:
+    global _session, _latest_result, _mission_plan
+    _session = EngineSession()
+    _latest_result = None
+    _mission_plan = None
+
+
+def _simulation_on_step(measured: dict, twin_ctx: TwinContext, dt_s: float):
+    """Runs on every fine simulation step - same EngineSession.step() call
+    /api/telemetry/ingest uses, just called from the background flight-sim
+    task instead of an HTTP request."""
+    return _session.step(measured, twin_ctx, dt_s)
+
+
+async def _simulation_on_broadcast(t: float, pipeline_result) -> None:
+    prediction, residual, diagnosis, rul, risk = pipeline_result
+    result = PipelineResult(t=t, prediction=prediction, residual=residual, diagnosis=diagnosis, rul=rul, risk=risk)
+    await _broadcast(result)
+
+
+_flight_sim = FlightSimulator(on_step=_simulation_on_step, on_broadcast=_simulation_on_broadcast)
 
 
 # Edge tier, up to the twin's own rate (20-50Hz per Table 13) in a real
@@ -150,11 +177,11 @@ async def ws_telemetry(websocket: WebSocket):
 @app.post("/api/session/reset")
 async def reset_session():
     """Starts a fresh EngineSession (new twin state, cleared detection
-    trackers) - useful between demo scenarios."""
-    global _session, _latest_result, _mission_plan
-    _session = EngineSession()
-    _latest_result = None
-    _mission_plan = None
+    trackers) - useful between demo scenarios. Also stops any running
+    flight simulation, since it would otherwise keep driving the session
+    that was just reset out from under it."""
+    await _flight_sim.stop()
+    _reset_session_state()
     return {"status": "reset"}
 
 
@@ -252,3 +279,36 @@ async def get_mission_plan():
     if _mission_plan is None:
         return None
     return _mission_plan.model_dump()
+
+
+# Edge tier - drives a real scripted flight (phase-by-phase throttle profile,
+# optional ramping fault) through the SAME EngineSession.step() + WebSocket
+# broadcast path /api/telemetry/ingest uses (see backend/app/simulation.py's
+# module docstring). Starting a new simulation resets the session first, so
+# a run always begins from a clean, unflagged state.
+@app.post("/api/simulation/start", response_model=FlightSimulationStatus)
+async def simulation_start(request: FlightSimulationStartRequest) -> FlightSimulationStatus:
+    if not request.phases:
+        raise HTTPException(status_code=422, detail="at least one flight phase is required")
+    _reset_session_state()
+    phases = [FlightPhase(name=p.name, duration_h=p.duration_h, throttle_pct=p.throttle_pct) for p in request.phases]
+    await _flight_sim.start(
+        phases=phases,
+        fault_mode=request.fault.mode,
+        fault_onset_frac=request.fault.onset_frac,
+        fault_end_severity=request.fault.end_severity,
+        fault_shape=request.fault.shape,
+        real_seconds_per_sim_hour=request.real_seconds_per_sim_hour,
+    )
+    return FlightSimulationStatus(**_flight_sim.status())
+
+
+@app.post("/api/simulation/stop", response_model=FlightSimulationStatus)
+async def simulation_stop() -> FlightSimulationStatus:
+    await _flight_sim.stop()
+    return FlightSimulationStatus(**_flight_sim.status())
+
+
+@app.get("/api/simulation/status", response_model=FlightSimulationStatus)
+async def simulation_status() -> FlightSimulationStatus:
+    return FlightSimulationStatus(**_flight_sim.status())
