@@ -117,7 +117,15 @@ class EngineSession:
     def __init__(self):
         self.twin = MeanValueTwin()
         self.graph, self.fault_first_movers, self.unavailable_faults = build_graph_from_fault_library()
-        self.cusum = {ch: CUSUMTracker() for ch in AVAILABLE_CHANNELS}
+        # One-sided CUSUM (eq 21.2) only detects shifts in ONE direction by
+        # construction (S clips to 0 whenever z is negative enough) - a fault
+        # that DROPS a channel (e.g. oil_pump_wear lowering oil_pressure)
+        # never trips an upper-only tracker. Run both directions per channel
+        # (lower tracks -z) and treat either firing as "activated"; this was
+        # missing in the first version of this class and silently made every
+        # pressure-drop-signature fault undetectable.
+        self.cusum_upper = {ch: CUSUMTracker() for ch in AVAILABLE_CHANNELS}
+        self.cusum_lower = {ch: CUSUMTracker() for ch in AVAILABLE_CHANNELS}
         self.persistence = {ch: PersistenceTracker(n_required=3) for ch in AVAILABLE_CHANNELS}
         self.health_index = HealthIndex(weights={ch: 1.0 / len(AVAILABLE_CHANNELS) for ch in AVAILABLE_CHANNELS})
 
@@ -144,7 +152,10 @@ class EngineSession:
 
         r = {ch: measured_channels[ch] - y_hat[ch] for ch in measured_channels if ch in y_hat}
         z = {ch: r[ch] / NOMINAL_SIGMA.get(ch, 1.0) for ch in r}
-        alarms = {ch: self.cusum[ch].update(z[ch]) for ch in z}
+        alarms = {
+            ch: self.cusum_upper[ch].update(z[ch]) or self.cusum_lower[ch].update(-z[ch])
+            for ch in z
+        }
         persistent = {ch: self.persistence[ch].update(alarms[ch]) for ch in z}
         residual = Residual(r=r, z=z, d2=float(sum(v**2 for v in z.values())), flags=persistent)
 
