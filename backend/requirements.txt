@@ -1,0 +1,5 @@
+# simengine's own dependencies (numpy, scipy, pydantic, pyyaml) are assumed
+# already installed via the root pyproject.toml - this file adds only what
+# the backend service itself needs on top of that.
+fastapi
+uvicorn[standard]

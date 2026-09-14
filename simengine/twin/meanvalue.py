@@ -234,7 +234,17 @@ class MeanValueTwin:
             "head": state.T_head_K, "coolant": state.T_coolant_K,
             "oil": state.T_oil_K, "liner": state.T_liner_K,
         }
-        h_ext = {"coolant": 700.0, "liner": 450.0, "oil": 600.0}
+        # cooling_mult < 1.0 models cooling_degradation (Appendix C: fouled
+        # radiator / lost ram-air effectiveness, h_ext*A falls) - added here
+        # (rather than only in engine/* directly) so Phase 17's pipeline can
+        # inject this specific fault into a running twin via ctx.theta,
+        # without needing a bespoke code path per fault.
+        cooling_mult = ctx.theta.get("cooling_mult", 1.0)
+        h_ext = {
+            "coolant": cooling_mult * 700.0,
+            "liner": cooling_mult * 450.0,
+            "oil": 600.0,
+        }
         T_next = self.thermal_network.step(
             T_current, dt_s=1.0,  # unit step; caller's outer dt scales the returned delta
             Qdot_in_W={"head": Qdot_head, "liner": Qdot_liner, "oil": Qdot_friction, "coolant": 0.0},
