@@ -220,6 +220,21 @@ for the full history and each commit message for what was learned building it.
 
 ## Quick start
 
+**One command** (sets up `.venv` and `frontend/node_modules` on first run if
+they don't exist yet, then runs both together; `Ctrl+C` stops both):
+
+```bash
+./start.sh
+# -> backend:  http://127.0.0.1:8000  (health: /api/health, docs: /docs)
+# -> frontend: http://127.0.0.1:5173
+```
+
+Override ports/hosts via env vars if needed:
+`BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start.sh`.
+
+<details>
+<summary>Or run each piece by hand</summary>
+
 ```bash
 # 1. Python environment (simengine + backend)
 uv venv .venv
@@ -235,6 +250,8 @@ npm install
 npm run dev
 # -> http://localhost:5173
 ```
+
+</details>
 
 See [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for a guided walkthrough,
 including the exact `curl` command used to produce the fault-detected

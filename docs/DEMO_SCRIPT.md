@@ -8,18 +8,14 @@ narration pattern but describing the REAL pipeline built in
 ## Before you start
 
 ```bash
-# terminal 1 - backend
 cd uav-engine-twin
-source .venv/bin/activate  # or: uv venv .venv && uv pip install -e ".[dev,backend]"
-uvicorn backend.app.main:app --reload
-
-# terminal 2 - frontend
-cd uav-engine-twin/frontend
-npm install
-npm run dev
+./start.sh
 ```
 
-Open the printed frontend URL (typically `http://localhost:5173`).
+This sets up `.venv` and `frontend/node_modules` on first run if they don't
+exist yet, then starts the backend (`http://127.0.0.1:8000`) and frontend
+(`http://127.0.0.1:5173`) together in one terminal - `Ctrl+C` stops both.
+(To run each piece by hand instead, see the README's Quick Start section.)
 
 ## 0:00 — Open (problem framing)
 
