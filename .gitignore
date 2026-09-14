@@ -4,6 +4,7 @@ research/
 __pycache__/
 *.pyc
 *.egg-info/
+simengine/validation/data/
 node_modules/
 dist/
 .pytest_cache/
