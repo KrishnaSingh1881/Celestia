@@ -23,7 +23,7 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     id: 'engine-twin',
     title: 'Digital Twin',
     loader: () => import('../Components/engine/EngineTwin3D'),
-    span: 'half',
+    span: 'full',
   },
   {
     id: 'alerts-feed',
@@ -32,9 +32,15 @@ export const DASHBOARD_MODULES: DashboardModule[] = [
     span: 'half',
   },
   {
-    id: 'trend-chart',
-    title: 'Trends',
-    loader: () => import('../Components/charts/TrendChart'),
+    id: 'maintenance-schedule',
+    title: 'Maintenance Schedule',
+    loader: () => import('../Components/insights/MaintenanceSchedule'),
+    span: 'half',
+  },
+  {
+    id: 'all-channels-chart',
+    title: 'All Telemetry Channels',
+    loader: () => import('../Components/charts/AllChannelsChart'),
     span: 'full',
   },
 ];

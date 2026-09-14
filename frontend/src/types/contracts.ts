@@ -75,3 +75,46 @@ export const AVAILABLE_CHANNELS = [
 ] as const;
 
 export type ChannelName = (typeof AVAILABLE_CHANNELS)[number];
+
+// Mirrors backend/app/schemas.py's graph/health/mission additions.
+export interface GraphNode {
+  id: string;
+  kind: 'component' | 'parameter' | 'observable' | 'context' | string;
+  activation: number;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  gain: number;
+  lag_h: number;
+  confidence: number;
+}
+
+export interface GraphTopologyResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface HealthBreakdownResponse {
+  health_index: number;
+  contributions: Record<string, number>;
+}
+
+export interface MissionSegmentRequest {
+  name: string;
+  duration_h: number;
+  power_pct: number;
+}
+
+export interface MissionSegmentResult extends MissionSegmentRequest {
+  survival_probability: number;
+}
+
+export interface MissionPlanResponse {
+  segments: MissionSegmentResult[];
+  overall_survival_probability: number;
+  overall_tier: Risk['tier'];
+  recommended_action: string;
+  total_duration_h: number;
+}

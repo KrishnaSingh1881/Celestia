@@ -18,6 +18,7 @@ import asyncio
 import time
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.pipeline import EngineSession, api_context_to_twin_context
 from backend.app.schemas import (
@@ -37,6 +38,19 @@ from backend.app.schemas import (
 from simengine.twin.mission_risk import AdvisoryTierClassifier, mission_survival_probability
 
 app = FastAPI(title="AeroTwin backend (Celestia SIH26054)")
+
+# Local dev serves the frontend from a Vite dev server on a different origin
+# (port, and sometimes 127.0.0.1 vs localhost) than this API - browsers
+# enforce CORS on plain fetch()/XHR (WebSocket handshakes aren't subject to
+# the same-origin fetch check, which is why REST calls needed this but the
+# telemetry WS didn't). Wide open because this is a local reference backend,
+# not a multi-tenant service.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Single global session (one engine, one diagnosis state) - see this
 # module's docstring; a multi-aircraft deployment would key sessions by

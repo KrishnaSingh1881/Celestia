@@ -7,6 +7,7 @@ import Layout from './Components/layout/Layout';
 // module requirement, and modules/registry.ts for the same idea applied to
 // Dashboard panels).
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const VirtualTwin = lazy(() => import('./pages/VirtualTwin'));
 const Telemetry = lazy(() => import('./pages/Telemetry'));
 const Health = lazy(() => import('./pages/Health'));
 const MissionControl = lazy(() => import('./pages/MissionControl'));
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'virtualtwin', element: <VirtualTwin /> },
       { path: 'telemetry', element: <Telemetry /> },
       { path: 'health', element: <Health /> },
       { path: 'mission', element: <MissionControl /> },

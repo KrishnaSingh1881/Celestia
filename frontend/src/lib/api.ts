@@ -1,4 +1,12 @@
-import type { ChannelName, Context, PipelineResult } from '../types/contracts';
+import type {
+  ChannelName,
+  Context,
+  GraphTopologyResponse,
+  HealthBreakdownResponse,
+  MissionPlanResponse,
+  MissionSegmentRequest,
+  PipelineResult,
+} from '../types/contracts';
 
 // Single place the backend's base URL is read from - never hardcode a host
 // anywhere else in the app.
@@ -45,4 +53,20 @@ export function resetSession(): Promise<{ status: string }> {
 
 export function fetchHealth(): Promise<{ status: string }> {
   return getJson('/api/health');
+}
+
+export function fetchGraphTopology(): Promise<GraphTopologyResponse> {
+  return getJson('/api/graph/topology');
+}
+
+export function fetchHealthBreakdown(): Promise<HealthBreakdownResponse> {
+  return getJson('/api/health/breakdown');
+}
+
+export function postMissionPlan(segments: MissionSegmentRequest[]): Promise<MissionPlanResponse> {
+  return postJson('/api/mission/plan', { segments });
+}
+
+export function fetchMissionPlan(): Promise<MissionPlanResponse | null> {
+  return getJson('/api/mission/plan');
 }

@@ -19,3 +19,27 @@ export function rpmToVisualSpeed(rpm: number): number {
   const clamped = Math.min(Math.max(rpm, 0), 6500);
   return (clamped / 60) * (2 * Math.PI) * 0.15; // rad/s, scaled down for legibility
 }
+
+/** Alias kept for parity with the baseline's naming - same clamp-and-scale
+ * behaviour as rpmToVisualSpeed(), used by the crank-angle animation loop. */
+export const rpmToSpeed = rpmToVisualSpeed;
+
+/** Interpolated thermal color as a hex string, driven by 3 thresholds
+ * (nominal/warn/crit) instead of thermalColor()'s 4, matching the shape
+ * the ported cylinder-head component expects. */
+export function thermalTarget(value: number, nominal: number, warn: number, crit: number): string {
+  return thermalColor(value, nominal, (nominal + warn) / 2, crit);
+}
+
+/** Small deterministic idle jitter (position offset in meters) scaled by a
+ * 0-1 intensity, standing in for the baseline's accelerometer-driven
+ * vibrationJitter() - this project has no vibration sensor channel yet, so
+ * intensity is derived from RPM fraction only and is purely cosmetic. */
+export function vibrationJitter(t: number, intensity: number, amplitude: number): { x: number; y: number; z: number } {
+  const a = amplitude * intensity;
+  return {
+    x: Math.sin(t * 47.0) * a * 0.4,
+    y: Math.sin(t * 53.0 + 1.3) * a,
+    z: Math.sin(t * 61.0 + 2.7) * a * 0.4,
+  };
+}
