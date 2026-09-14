@@ -1,4 +1,5 @@
 sihaimodel-main
+research/
 .venv
 __pycache__/
 *.pyc

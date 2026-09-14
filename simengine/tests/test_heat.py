@@ -17,6 +17,15 @@ from simengine.engine.heat import (
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 REFERENCE_SCRIPT = REPO_ROOT / "research" / "celestia_cycle_model_reference.py"
 
+# research/ is a local-only reference (deliberately untracked - see
+# .gitignore) holding the original spec + reference script this project was
+# built from. It exists on the machine that authored simengine, but not on a
+# fresh clone or in CI. This one test is the only runtime dependency on it
+# anywhere in the suite; skip gracefully rather than fail when it's absent,
+# since the physics it validates is already independently pinned by
+# test_tier_a_regression.py's Table 4 numbers.
+_HAS_REFERENCE_SCRIPT = REFERENCE_SCRIPT.exists()
+
 
 def _load_reference_module():
     spec = importlib.util.spec_from_file_location("celestia_reference", REFERENCE_SCRIPT)
@@ -25,6 +34,10 @@ def _load_reference_module():
     return mod
 
 
+@pytest.mark.skipif(
+    not _HAS_REFERENCE_SCRIPT,
+    reason="research/celestia_cycle_model_reference.py is a local-only reference, not present in this checkout",
+)
 def test_woschni_and_wall_heat_loss_match_reference_bit_for_bit():
     ref = _load_reference_module()
     result = ref.run_cycle(rpm=5800.0, MAP=1.32e5, Tivc=330.0, lam=0.85)
