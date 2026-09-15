@@ -82,9 +82,35 @@ def test_graph_topology_returns_nodes_and_edges():
     assert len(body["nodes"]) > 0
     assert len(body["edges"]) > 0
     kinds = {n["kind"] for n in body["nodes"]}
-    assert kinds <= {"component", "parameter", "observable", "context"}
+    assert kinds <= {"component", "parameter", "observable", "context", "equation", "output"}
     for edge in body["edges"]:
         assert 0.0 <= edge["confidence"] <= 1.0
+
+
+def test_graph_topology_includes_the_full_architecture_layer():
+    """The fault causal graph alone only covers component<->observable -
+    /api/graph/topology also merges in the static input/equation/output
+    layer (backend.app.pipeline.architecture_nodes_and_edges()), so a
+    client sees the whole real pipeline, not just the fault-diagnosis slice."""
+    client = TestClient(app)
+    client.post("/api/session/reset")
+    client.post("/api/telemetry/ingest", json=_frame())
+    body = client.get("/api/graph/topology").json()
+
+    nodes_by_kind: dict[str, set[str]] = {}
+    for n in body["nodes"]:
+        nodes_by_kind.setdefault(n["kind"], set()).add(n["id"])
+
+    assert nodes_by_kind["context"] == {
+        "altitude_m", "airspeed_m_s", "phase", "ambient_T_K", "ambient_p_Pa", "throttle_pct",
+    }
+    assert {"thermal_network", "oil_circuit", "causal_diagnosis", "rul_estimation", "mission_risk"} <= nodes_by_kind["equation"]
+    assert nodes_by_kind["output"] == {"residual_out", "diagnosis_out", "rul_out", "risk_out"}
+
+    node_ids = {n["id"] for n in body["nodes"]}
+    for edge in body["edges"]:
+        assert edge["source"] in node_ids
+        assert edge["target"] in node_ids
 
 
 def test_health_breakdown_sums_back_to_deficit():

@@ -109,6 +109,93 @@ def build_graph_from_fault_library() -> tuple[CausalHealthGraph, dict[str, list[
     return graph, fault_first_movers, unavailable
 
 
+# Static description of the REAL live pipeline (backend.app.pipeline.
+# EngineSession.step() -> simengine.twin.meanvalue.MeanValueTwin._derivatives)
+# for the "architecture" layer of /api/graph/topology - i.e. everything
+# upstream and downstream of the causal fault graph built above. Node ids
+# are drawn from simengine.twin.contracts.Context's real field names
+# (architecture_nodes_and_edges() below introspects them rather than
+# hardcoding a second, driftable copy) and backend.app.pipeline.AVAILABLE_CHANNELS;
+# gain=1.0/lag_h=0.0/confidence=1.0 on every edge here (vs. the fault
+# graph's Beta-Bernoulli-learned values) mark these as certain, structural,
+# same-timestep code connections, not statistically inferred ones.
+#
+# altitude_m/airspeed_m_s/phase are real Context fields but are NOT
+# currently consumed anywhere in api_context_to_twin_context() or
+# MeanValueTwin - they exist for a future context-conditioned residual
+# model (see this module's own docstring). They appear here as nodes with
+# no outgoing edge, rather than being wired to equation blocks they don't
+# actually reach, so the graph doesn't claim a connection the code doesn't have.
+_EQUATION_EDGES: list[tuple[str, str]] = [
+    ("throttle_pct", "context_mapping"),
+    ("context_mapping", "manifold_turbo_response"),
+    ("ambient_T_K", "volumetric_efficiency"),
+    ("ambient_p_Pa", "turbo_shaft_relaxation"),
+    ("volumetric_efficiency", "manifold_turbo_response"),
+    ("manifold_turbo_response", "combustion_surface"),
+    ("manifold_turbo_response", "turbo_shaft_relaxation"),
+    ("manifold_turbo_response", "predicted_channel_synthesis"),
+    ("combustion_surface", "friction_torque"),
+    ("combustion_surface", "thermal_network"),
+    ("combustion_surface", "predicted_channel_synthesis"),
+    ("friction_torque", "crank_prop_dynamics"),
+    ("friction_torque", "thermal_network"),
+    ("friction_torque", "oil_circuit"),
+    ("crank_prop_dynamics", "predicted_channel_synthesis"),
+    ("thermal_network", "oil_circuit"),
+    ("thermal_network", "predicted_channel_synthesis"),
+    ("oil_circuit", "predicted_channel_synthesis"),
+]
+
+PREDICTED_CHANNEL_TO_EQUATION_SOURCE: dict[str, str] = {
+    "MAP": "manifold_turbo_response",
+    "CHT": "thermal_network",
+    "coolant_temp": "thermal_network",
+    "oil_temp": "thermal_network",
+    "oil_pressure": "oil_circuit",
+    "EGT_proxy": "combustion_surface",
+    "rpm": "crank_prop_dynamics",
+}
+
+_DIAGNOSIS_PIPELINE_EDGES: list[tuple[str, str]] = [
+    ("residual_normalization", "cusum_detection"),
+    ("cusum_detection", "causal_diagnosis"),
+    ("residual_normalization", "health_index"),
+    ("causal_diagnosis", "rul_estimation"),
+    ("health_index", "mission_risk"),
+    ("rul_estimation", "mission_risk"),
+    ("causal_diagnosis", "diagnosis_out"),
+    ("rul_estimation", "rul_out"),
+    ("mission_risk", "risk_out"),
+    ("residual_normalization", "residual_out"),
+]
+
+
+def architecture_nodes_and_edges() -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Returns (nodes, edges) for the static input/equation/output layer,
+    as (id, kind) and (source, target) pairs - merge with a fault
+    CausalHealthGraph's own nodes/edges for the full topology."""
+    input_fields = list(ContractContext.model_fields.keys())
+    equation_ids = sorted({a for a, _ in _EQUATION_EDGES} | {b for _, b in _EQUATION_EDGES} | {"predicted_channel_synthesis"})
+    equation_ids = [e for e in equation_ids if e not in input_fields]
+    pipeline_equation_ids = [
+        "residual_normalization", "cusum_detection", "causal_diagnosis", "health_index",
+        "rul_estimation", "mission_risk",
+    ]
+    output_ids = ["residual_out", "diagnosis_out", "rul_out", "risk_out"]
+
+    nodes: list[tuple[str, str]] = [(f, "context") for f in input_fields]
+    nodes += [(e, "equation") for e in equation_ids if e not in pipeline_equation_ids]
+    nodes += [(e, "equation") for e in pipeline_equation_ids]
+    nodes += [(o, "output") for o in output_ids]
+
+    edges = list(_EQUATION_EDGES)
+    edges += [(source, ch) for ch, source in PREDICTED_CHANNEL_TO_EQUATION_SOURCE.items()]
+    edges += [(ch, "residual_normalization") for ch in AVAILABLE_CHANNELS]
+    edges += _DIAGNOSIS_PIPELINE_EDGES
+    return nodes, edges
+
+
 class EngineSession:
     """One running diagnostic session: a live MeanValueTwin plus the
     detection/diagnosis state (CUSUM trackers, causal graph) that persists

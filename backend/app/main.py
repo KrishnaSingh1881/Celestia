@@ -20,7 +20,12 @@ import time
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.pipeline import EngineSession, api_context_to_twin_context
+from backend.app.pipeline import (
+    PREDICTED_CHANNEL_TO_EQUATION_SOURCE,
+    EngineSession,
+    api_context_to_twin_context,
+    architecture_nodes_and_edges,
+)
 from backend.app.schemas import (
     FlightSimulationStartRequest,
     FlightSimulationStatus,
@@ -189,6 +194,15 @@ async def reset_session():
 # TOPOLOGY itself changes rarely (only when record_maintenance_event() runs),
 # so this is safe to poll at a low rate from the frontend; per-node
 # `activation` is refreshed from whatever the latest diagnosis found.
+#
+# Two layers are merged into one response: the dynamic, Beta-Bernoulli-
+# learned fault causal graph (component <-> observable, confidence = real
+# learned edge posterior) built by build_graph_from_fault_library(), and the
+# static architecture layer from pipeline.architecture_nodes_and_edges()
+# (Context inputs -> the real MeanValueTwin/EngineSession equation blocks ->
+# the same observable channels -> residual/detection/diagnosis/RUL/risk
+# outputs) - so one graph shows the entire real pipeline, not just the
+# fault-to-symptom slice of it.
 @app.get("/api/graph/topology", response_model=GraphTopologyResponse)
 async def graph_topology() -> GraphTopologyResponse:
     graph = _session.graph
@@ -208,7 +222,47 @@ async def graph_topology() -> GraphTopologyResponse:
         )
         for edge in graph.edges.values()
     ]
+
+    arch_nodes, arch_edges = architecture_nodes_and_edges()
+    existing_ids = {n.id for n in nodes}
+    equation_activation = _equation_activation(_latest_result)
+    for node_id, kind in arch_nodes:
+        if node_id in existing_ids:
+            continue
+        nodes.append(GraphNode(id=node_id, kind=kind, activation=equation_activation.get(node_id, 0.0)))
+    edges += [GraphEdge(source=s, target=t, gain=1.0, lag_h=0.0, confidence=1.0) for s, t in arch_edges]
+
     return GraphTopologyResponse(nodes=nodes, edges=edges)
+
+
+def _equation_activation(result: PipelineResult | None) -> dict[str, float]:
+    """Real-time 'liveness' for the static architecture layer - derived
+    from the actual latest residual/diagnosis/rul/risk, not fabricated:
+    which equation blocks are currently implicated by a flagged channel,
+    an active diagnosis, a confirmed RUL driver, or an elevated risk tier."""
+    if result is None:
+        return {}
+    flagged_channels = {ch for ch, flagged in result.residual.flags.items() if flagged}
+    activation: dict[str, float] = {}
+    for ch, source in PREDICTED_CHANNEL_TO_EQUATION_SOURCE.items():
+        if ch in flagged_channels:
+            activation[source] = max(activation.get(source, 0.0), 1.0)
+
+    any_flag = bool(flagged_channels)
+    activation["cusum_detection"] = 1.0 if any_flag else 0.0
+    activation["residual_normalization"] = min(result.residual.d2 / 10.0, 1.0)
+
+    top = result.diagnosis.hypotheses[0] if result.diagnosis.hypotheses else None
+    activation["causal_diagnosis"] = top.probability if top else 0.0
+    activation["rul_estimation"] = 1.0 if result.rul.driver != "none" else 0.0
+    activation["health_index"] = max(0.0, (100.0 - result.risk.health_index) / 100.0)
+    activation["mission_risk"] = {"Nominal": 0.0, "Watch": 0.1, "Advisory": 0.4, "Caution": 0.7}.get(result.risk.tier, 1.0)
+
+    activation["residual_out"] = activation["residual_normalization"]
+    activation["diagnosis_out"] = activation["causal_diagnosis"]
+    activation["rul_out"] = activation["rul_estimation"]
+    activation["risk_out"] = activation["mission_risk"]
+    return activation
 
 
 # GCS tier - health index decomposition is derived from the latest residual,

@@ -9,3 +9,4 @@ node_modules/
 dist/
 .pytest_cache/
 Virtualengine-main
+graphify-out/

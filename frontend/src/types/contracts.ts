@@ -79,7 +79,7 @@ export type ChannelName = (typeof AVAILABLE_CHANNELS)[number];
 // Mirrors backend/app/schemas.py's graph/health/mission additions.
 export interface GraphNode {
   id: string;
-  kind: 'component' | 'parameter' | 'observable' | 'context' | string;
+  kind: 'component' | 'parameter' | 'observable' | 'context' | 'equation' | 'output' | string;
   activation: number;
 }
 
