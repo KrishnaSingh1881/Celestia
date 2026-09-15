@@ -19,7 +19,7 @@ export default function TopBar() {
   const topCause = diagnosis?.hypotheses[0];
 
   return (
-    <header className="bg-white border-b border-gray-200/80 px-6 py-2.5 flex items-center justify-between gap-4 shrink-0 shadow-sm select-none z-30">
+    <header className="bg-white border-b border-gray-200/80 px-6 py-2.5 flex items-center justify-between gap-4 shrink-0 shadow-xs select-none z-30">
       <div className="flex items-center gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
@@ -44,7 +44,7 @@ export default function TopBar() {
         <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider hidden xl:inline">Pipeline:</span>
 
         <div
-          className={`flex items-center gap-2 px-3 py-1 rounded-xl border text-xs transition-all shadow-sm ${
+          className={`flex items-center gap-2 px-3 py-1 rounded-xl border text-xs transition-all shadow-xs ${
             anyFlagged ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-50/80 border-gray-200 text-gray-700'
           }`}
           title="Detection: Mahalanobis distance + CUSUM/GLR per channel"
@@ -59,7 +59,7 @@ export default function TopBar() {
         </div>
 
         <div
-          className={`flex items-center gap-2 px-3 py-1 rounded-xl border text-xs transition-all shadow-sm ${
+          className={`flex items-center gap-2 px-3 py-1 rounded-xl border text-xs transition-all shadow-xs ${
             topCause && topCause.probability > 0.5 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-gray-50/80 border-gray-200 text-gray-700'
           }`}
           title="Causal health graph: ranked root-cause diagnosis"
@@ -79,7 +79,7 @@ export default function TopBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-gray-200 bg-gray-50/80 text-gray-700 text-xs shadow-sm" title="Remaining useful life (50th percentile)">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-gray-200 bg-gray-50/80 text-gray-700 text-xs shadow-xs" title="Remaining useful life (50th percentile)">
           <div className="w-5 h-5 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
             <Clock size={12} strokeWidth={2.4} />
           </div>
@@ -91,7 +91,7 @@ export default function TopBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-gray-200 bg-gray-50/80 text-gray-700 text-xs shadow-sm" title="Mission risk / go-no-go tier">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-xl border border-gray-200 bg-gray-50/80 text-gray-700 text-xs shadow-xs" title="Mission risk / go-no-go tier">
           <div className="w-5 h-5 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
             <TrendingUp size={12} strokeWidth={2.4} />
           </div>

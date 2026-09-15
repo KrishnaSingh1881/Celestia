@@ -1,13 +1,64 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist' layer(base);
+@import '@fontsource-variable/geist-mono' layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-/* Design tokens and component classes ported from sihaimodel-main's
-   index.css (a pure CSS/Tailwind config, safe to reuse verbatim) - kept as
-   the single design system for this app. Strictly light theme throughout:
-   no dark-mode variants are defined anywhere in this file. */
+@theme {
+  --color-cream: #f5f2ec;
+  --color-cream-dark: #ede9df;
+
+  --color-orange-50: #fff4ef;
+  --color-orange-100: #ffe8dc;
+  --color-orange-400: #ff8c5a;
+  --color-orange-500: #ff6b35;
+  --color-orange-600: #e55a25;
+  --color-orange-700: #c44a1a;
+  --color-orange: #ff6b35;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+
+  --color-emerald-500: #10b981;
+
+  --color-rose-500: #f43f5e;
+
+  /* Geist for UI text, Geist Mono for anything numeric/telemetry-like
+     (RPM, temperatures, timestamps) - kept as two separate tokens so
+     components can opt into --font-mono deliberately, not by accident. */
+  --font-sans: 'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+  --shadow-card:
+    0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-card-md:
+    0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-card-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+}
+
+/* Design tokens ported from sihaimodel-main's index.css, plus shadcn/ui's
+   semantic token set remapped onto THIS app's own orange/light palette
+   (rather than shadcn's default neutral black/white) so every shadcn
+   component (Button, Dialog, Tooltip, ...) looks native here out of the
+   box. Strictly light theme throughout: no .dark block exists, since
+   nothing in this app ever sets a `dark` class. Declared BEFORE the
+   `@theme inline` block below, since that block's `var(--background)`
+   etc. references must resolve to something already defined - Tailwind v4
+   evaluates `@theme inline` values at build time, not at CSS-cascade time. */
 :root {
   --orange: #ff6b35;
   --orange-dark: #e55a25;
@@ -20,6 +71,187 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
+
+  --background: var(--page-bg);
+  --foreground: var(--text-primary);
+  --card: var(--card-bg);
+  --card-foreground: var(--text-primary);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--orange);
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: var(--text-primary);
+  --muted: #f8fafc;
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--orange-light);
+  --accent-foreground: var(--orange-dark);
+  --destructive: #f43f5e;
+  --input: var(--border);
+  --ring: var(--orange);
+  --radius: 0.625rem;
+  --sidebar: var(--sidebar-bg);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--orange);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--orange-light);
+  --sidebar-accent-foreground: var(--orange-dark);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--orange);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility card {
+  @apply bg-white rounded-2xl p-5;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
+  border: 1px solid #e2e8f0;
+}
+
+@utility card-sm {
+  @apply bg-white rounded-2xl p-4;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
+  border: 1px solid #e2e8f0;
+}
+
+@utility label-xs {
+  @apply text-[10px] font-semibold uppercase tracking-widest text-slate-500;
+}
+
+@utility page-title {
+  @apply text-xl font-black text-slate-900 tracking-tight;
+}
+
+@utility section-title {
+  @apply text-xs font-black uppercase tracking-widest text-slate-500;
+}
+
+@utility dot-healthy {
+  @apply w-2 h-2 rounded-full bg-emerald-500;
+}
+
+@utility dot-warning {
+  @apply w-2 h-2 rounded-full bg-amber-500;
+}
+
+@utility dot-critical {
+  @apply w-2 h-2 rounded-full bg-rose-500 animate-pulse;
+}
+
+@utility tag-high {
+  @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200;
+}
+
+@utility tag-medium {
+  @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200;
+}
+
+@utility tag-low {
+  @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200;
+}
+
+@utility btn-orange {
+  @apply text-white font-bold px-4 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm shadow-xs;
+  background: var(--orange);
+  &:hover {
+    background: var(--orange-dark);
+  }
+}
+
+@utility btn-ghost {
+  @apply border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm;
+}
+
+@utility btn-outline-orange {
+  @apply font-semibold px-4 py-2 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm border;
+  color: var(--orange);
+  border-color: var(--orange);
+  background: rgba(255, 107, 53, 0.08);
+  &:hover {
+    background: rgba(255, 107, 53, 0.16);
+  }
+}
+
+@utility page-header {
+  @apply flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0;
+}
+
+@utility kpi-value {
+  @apply text-3xl font-black leading-none;
+  color: var(--orange);
+}
+
+@utility kpi-value-dark {
+  @apply text-3xl font-black leading-none text-slate-900;
+}
+
+@utility badge-orange {
+  @apply text-[9px] font-black px-2 py-1 rounded-lg;
+  background: rgba(255, 107, 53, 0.08);
+  color: var(--orange);
+  border: 1px solid rgba(255, 107, 53, 0.25);
+}
+
+@utility badge-sim {
+  @apply text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700;
+}
+
+@utility badge-success {
+  @apply text-[9px] font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700;
 }
 
 @layer base {
@@ -29,100 +261,16 @@
     box-sizing: border-box;
   }
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply font-sans;
   }
   body {
-    background-color: var(--page-bg);
-    color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     margin: 0;
+    @apply bg-background text-foreground;
   }
-}
-
-@layer components {
-  .card {
-    @apply bg-white rounded-2xl p-5;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-    border: 1px solid #e2e8f0;
-  }
-  .card-sm {
-    @apply card p-4;
-  }
-
-  .label-xs {
-    @apply text-[10px] font-semibold uppercase tracking-widest text-slate-500;
-  }
-  .page-title {
-    @apply text-xl font-black text-slate-900 tracking-tight;
-  }
-  .section-title {
-    @apply text-xs font-black uppercase tracking-widest text-slate-500;
-  }
-
-  .dot-healthy {
-    @apply w-2 h-2 rounded-full bg-emerald-500;
-  }
-  .dot-warning {
-    @apply w-2 h-2 rounded-full bg-amber-500;
-  }
-  .dot-critical {
-    @apply w-2 h-2 rounded-full bg-rose-500 animate-pulse;
-  }
-
-  .tag-high {
-    @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200;
-  }
-  .tag-medium {
-    @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200;
-  }
-  .tag-low {
-    @apply text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200;
-  }
-
-  .btn-orange {
-    @apply text-white font-bold px-4 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm shadow-sm;
-    background: var(--orange);
-  }
-  .btn-orange:hover {
-    background: var(--orange-dark);
-  }
-  .btn-ghost {
-    @apply border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2.5 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm;
-  }
-  .btn-outline-orange {
-    @apply font-semibold px-4 py-2 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm border;
-    color: var(--orange);
-    border-color: var(--orange);
-    background: rgba(255, 107, 53, 0.08);
-  }
-  .btn-outline-orange:hover {
-    background: rgba(255, 107, 53, 0.16);
-  }
-
-  .page-header {
-    @apply flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0;
-  }
-
-  .kpi-value {
-    @apply text-3xl font-black leading-none;
-    color: var(--orange);
-  }
-  .kpi-value-dark {
-    @apply text-3xl font-black leading-none text-slate-900;
-  }
-
-  .badge-orange {
-    @apply text-[9px] font-black px-2 py-1 rounded-lg;
-    background: rgba(255, 107, 53, 0.08);
-    color: var(--orange);
-    border: 1px solid rgba(255, 107, 53, 0.25);
-  }
-  .badge-sim {
-    @apply text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-700;
-  }
-  .badge-success {
-    @apply text-[9px] font-bold px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700;
+  * {
+    @apply border-border outline-ring/50;
   }
 }
 

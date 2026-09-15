@@ -25,7 +25,7 @@ function CauseNode({ data }: NodeProps) {
   const glow = activationGlow(d.activation);
   return (
     <div
-      className="px-3 py-2 rounded-xl border-2 bg-white shadow-sm text-center min-w-[110px]"
+      className="px-3 py-2 rounded-xl border-2 bg-white shadow-xs text-center min-w-[110px]"
       style={{ borderColor: d.activation > 0.35 ? glow : base, boxShadow: d.activation > 0.35 ? `0 0 0 3px ${glow}22` : undefined }}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />

@@ -684,7 +684,7 @@ export default function EngineTwin3D() {
   const oilP = connected && prediction ? (prediction.y_hat.oil_pressure / 1e5).toFixed(1) : '--';
 
   return (
-    <div className="w-full h-[520px] lg:h-[580px] bg-gradient-to-b from-white via-slate-50 to-slate-100 border border-gray-200/90 rounded-3xl relative shadow-sm overflow-hidden select-none">
+    <div className="w-full h-[520px] lg:h-[580px] bg-gradient-to-b from-white via-slate-50 to-slate-100 border border-gray-200/90 rounded-3xl relative shadow-xs overflow-hidden select-none">
       <Canvas shadows gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}>
         <PerspectiveCamera makeDefault position={[3.6, 2.4, 4.6]} fov={44} />
         <ambientLight intensity={0.75} />
@@ -742,7 +742,7 @@ export default function EngineTwin3D() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsCutaway((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm backdrop-blur-md cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs backdrop-blur-md cursor-pointer border ${
               isCutaway ? 'bg-[#003087] text-white border-blue-600' : 'bg-white/95 text-gray-700 border-gray-200 hover:bg-gray-50'
             }`}
           >
@@ -751,7 +751,7 @@ export default function EngineTwin3D() {
           </button>
           <button
             onClick={() => setShowPins((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm backdrop-blur-md cursor-pointer border ${
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs backdrop-blur-md cursor-pointer border ${
               showPins ? 'bg-orange-500 text-white border-orange-600' : 'bg-white/95 text-gray-700 border-gray-200 hover:bg-gray-50'
             }`}
           >

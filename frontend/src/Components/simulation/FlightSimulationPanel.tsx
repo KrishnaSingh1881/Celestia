@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Pause, Plane, Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { fetchFlightSimulationStatus, startFlightSimulation, stopFlightSimulation } from '../../lib/api';
 import type { FaultMode, FlightPhaseSpec, FlightSimulationStatus, SeverityShape } from '../../types/contracts';
 import { useEngineStore } from '../../store/useEngineStore';
@@ -326,13 +327,13 @@ export default function FlightSimulationPanel() {
 
         <div className="flex gap-2">
           {!running ? (
-            <button onClick={handleStart} disabled={busy || phases.length === 0} className="btn-orange flex-1 justify-center disabled:opacity-50">
+            <Button onClick={handleStart} disabled={busy || phases.length === 0} size="lg" className="flex-1">
               <Plane size={14} /> Start Flight Simulation
-            </button>
+            </Button>
           ) : (
-            <button onClick={handleStop} disabled={busy} className="btn-ghost flex-1 justify-center disabled:opacity-50">
+            <Button onClick={handleStop} disabled={busy} variant="outline" size="lg" className="flex-1">
               <Pause size={14} /> Stop Simulation
-            </button>
+            </Button>
           )}
         </div>
         {error && <div className="text-xs text-rose-500 mt-2">{error}</div>}
