@@ -86,25 +86,25 @@ residual-based monitoring system.
 ```mermaid
 flowchart TB
     subgraph offline["Offline (workstation)"]
-        TierA["Tier A — high-fidelity generator<br/>crank-angle-resolved cycle model<br/>0.2° CA, RK4"]
-        Cal["Calibration<br/>Levenberg-Marquardt + SVD identifiability"]
-        Gates["5 validation gates<br/>conservation · external anchors · sensitivity ·<br/>cross-model agreement · external dataset"]
-        Campaign["DOE fault campaign<br/>Latin hypercube, 21 fault modes"]
+        TierA["Tier A: High-fidelity generator (crank-angle-resolved RK4 cycle model)"]
+        Cal["Calibration: Levenberg-Marquardt and SVD identifiability"]
+        Gates["5 Validation Gates: Conservation, external anchors, sensitivity, agreement, transfer"]
+        Campaign["DOE Fault Campaign: Latin hypercube across 21 fault modes"]
         TierA --> Cal --> Gates
         TierA --> Campaign
     end
 
-    subgraph runtime["Runtime (one process today; Edge/GCS/Ground in a real deployment)"]
-        Surface["Precomputed (rpm, MAP) surface<br/>built once from Tier A"]
-        TierB["Tier B — mean-value twin<br/>8-state ODE, 20-50Hz"]
-        Residual["Residuals<br/>output · parameter · relational · symmetry"]
-        UKF["UKF state estimation<br/>+ learned correction"]
-        Detect["Detection<br/>Mahalanobis · CUSUM · GLR"]
-        Discrim["Sensor-vs-engine<br/>discriminator (parity relations)"]
-        Graph["Causal health graph<br/>noisy-OR · log-odds · Beta-Bernoulli edges"]
-        HI["Health index"]
-        RUL["RUL<br/>inverse-Gaussian + particle filter"]
-        Risk["Mission risk /<br/>go-no-go (advisory only)"]
+    subgraph runtime["Runtime Engine"]
+        Surface["Precomputed rpm and MAP Surface built from Tier A"]
+        TierB["Tier B: Mean-value twin (8-state ODE at 20-50Hz)"]
+        Residual["Residuals: Output, parameter, relational, symmetry"]
+        UKF["UKF State Estimation and learned correction"]
+        Detect["Detection: Mahalanobis, CUSUM, GLR"]
+        Discrim["Sensor vs Engine Discriminator (parity relations)"]
+        Graph["Causal Health Graph: Noisy-OR, log-odds, Beta-Bernoulli edges"]
+        HI["Health Index"]
+        RUL["RUL: Inverse-Gaussian and particle filter"]
+        Risk["Mission Risk and Go No-Go recommendation"]
 
         Surface --> TierB --> Residual --> UKF --> Detect --> Discrim --> Graph
         Graph --> HI
@@ -113,11 +113,11 @@ flowchart TB
         RUL --> Risk
     end
 
-    TierA -.builds.-> Surface
-    Gates -.validates.-> TierB
+    TierA -.-> Surface
+    Gates -.-> TierB
 
-    Risk --> Backend["FastAPI backend<br/>WebSocket + REST"]
-    Backend -->|live telemetry| Frontend["React + TypeScript dashboard<br/>strict types, dynamic lazy-loaded modules"]
+    Risk --> Backend["FastAPI Backend (WebSocket and REST)"]
+    Backend --> Frontend["React and TypeScript Dashboard"]
 ```
 
 The pipeline itself is a fixed chain of typed contracts
@@ -126,12 +126,12 @@ testable and swappable:
 
 ```mermaid
 flowchart LR
-    A[TelemetryFrame] --> B[Context]
-    B --> C[Prediction]
-    C --> D[Residual]
-    D --> E[Diagnosis]
-    E --> F[RUL]
-    F --> G[Risk]
+    A["TelemetryFrame"] --> B["Context"]
+    B --> C["Prediction"]
+    C --> D["Residual"]
+    D --> E["Diagnosis"]
+    E --> F["RUL"]
+    F --> G["Risk"]
     G --> H["Dashboard · Reports · Logs"]
 ```
 
