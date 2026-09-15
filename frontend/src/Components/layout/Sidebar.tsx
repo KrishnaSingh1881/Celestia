@@ -57,7 +57,7 @@ export default function Sidebar() {
         <NavLink to="/" title="AeroTwin — Engine Digital Twin" className="group flex flex-col items-center gap-1">
           <div
             className="w-11 h-11 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-105 relative border-2 bg-white"
-            style={{ borderColor: 'var(--orange)', boxShadow: '0 2px 12px rgba(255,107,53,0.18)' }}
+            style={{ borderColor: 'var(--orange)', boxShadow: '0 2px 12px rgba(66,133,244,0.18)' }}
           >
             <HugeiconsIcon icon={GaugeIcon} size={20} className="text-orange-500" strokeWidth={2.2} />
             <span
@@ -83,7 +83,7 @@ export default function Sidebar() {
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200"
                       style={{
-                        background: isActive ? 'rgba(255,107,53,0.12)' : 'transparent',
+                        background: isActive ? 'rgba(66,133,244,0.12)' : 'transparent',
                         color: isActive ? 'var(--orange)' : '#64748B',
                       }}
                     >

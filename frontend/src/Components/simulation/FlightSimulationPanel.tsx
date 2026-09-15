@@ -65,8 +65,13 @@ function formatHours(h: number): string {
   return hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
 }
 
-export default function FlightSimulationPanel() {
-  const [phases, setPhases] = useState<FlightPhaseSpec[]>(PRESETS[0].phases);
+interface FlightSimulationPanelProps {
+  phases: FlightPhaseSpec[];
+  onPhasesChange: (phases: FlightPhaseSpec[]) => void;
+  onStatusChange?: (status: FlightSimulationStatus | null) => void;
+}
+
+export default function FlightSimulationPanel({ phases, onPhasesChange: setPhases, onStatusChange }: FlightSimulationPanelProps) {
   const [faultMode, setFaultMode] = useState<FaultMode>('none');
   const [onsetFrac, setOnsetFrac] = useState(0.3);
   const [endSeverity, setEndSeverity] = useState(0.5);
@@ -93,6 +98,11 @@ export default function FlightSimulationPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    onStatusChange?.(status);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   function startPolling() {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
@@ -114,15 +124,15 @@ export default function FlightSimulationPanel() {
   }
 
   function updatePhase(index: number, patch: Partial<FlightPhaseSpec>) {
-    setPhases((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+    setPhases(phases.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   }
 
   function addPhase() {
-    setPhases((prev) => [...prev, { name: `Phase ${prev.length + 1}`, duration_h: 0.1, throttle_pct: 50 }]);
+    setPhases([...phases, { name: `Phase ${phases.length + 1}`, duration_h: 0.1, throttle_pct: 50 }]);
   }
 
   function removePhase(index: number) {
-    setPhases((prev) => prev.filter((_, i) => i !== index));
+    setPhases(phases.filter((_, i) => i !== index));
   }
 
   async function handleStart() {

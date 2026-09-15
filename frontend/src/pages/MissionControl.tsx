@@ -1,33 +1,26 @@
-import { useEngineStore } from '../store/useEngineStore';
+import { motion } from 'framer-motion';
+import MissionReliabilityPanel from '../Components/simulation/MissionReliabilityPanel';
 
-const TIER_COLOR: Record<string, string> = {
-  Nominal: 'bg-emerald-500',
-  Watch: 'bg-emerald-500',
-  Advisory: 'bg-orange-400',
-  Caution: 'bg-orange-600',
-  Warning: 'bg-rose-500',
-};
+// backend.app.pipeline computes the live risk.P_success against a fixed
+// 2.0h "remaining mission" assumption (see EngineSession.step's
+// remaining_mission_h) - reused here so this page's mission-demand figure
+// matches the real number the backend's own reliability output was
+// actually computed against, rather than inventing a different one.
+const BACKEND_ASSUMED_REMAINING_MISSION_H = 2.0;
 
 export default function MissionControl() {
-  const risk = useEngineStore((s) => s.risk);
-
   return (
-    <div className="rounded-2xl bg-white shadow-card p-6">
-      <h2 className="text-lg font-semibold mb-4">Mission Risk &amp; Go/No-Go</h2>
-      <div className="flex items-center gap-4">
-        <div className={`h-16 w-16 rounded-full ${risk ? TIER_COLOR[risk.tier] ?? 'bg-slate-300' : 'bg-slate-300'}`} />
-        <div>
-          <div className="text-2xl font-bold">{risk?.tier ?? 'No data'}</div>
-          <div className="text-sm text-slate-500">
-            Mission survival probability: {risk ? `${(risk.P_success * 100).toFixed(2)}%` : '--'}
-          </div>
-        </div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: 'easeOut' }}>
+      <div className="mb-5">
+        <h1 className="page-title">Mission Prediction</h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Live mission reliability and go/no-go decision, derived from the engine's current health, RUL, and fault
+          state - authority always stays with the crew, no tier here ever commands an actuator.
+        </p>
       </div>
-      <p className="mt-4 text-sm">{risk?.recommended_action}</p>
-      <p className="mt-2 text-xs text-slate-400">
-        This is a recommendation only - authority ({risk?.authority ?? 'crew decides'}) stays with the crew at
-        every tier. No code path in this system commands an actuator.
-      </p>
-    </div>
+      <div className="max-w-2xl">
+        <MissionReliabilityPanel missionDemandH={BACKEND_ASSUMED_REMAINING_MISSION_H} simStatus={null} />
+      </div>
+    </motion.div>
   );
 }

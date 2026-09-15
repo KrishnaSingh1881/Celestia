@@ -9,13 +9,18 @@
   --color-cream: #f5f2ec;
   --color-cream-dark: #ede9df;
 
-  --color-orange-50: #fff4ef;
-  --color-orange-100: #ffe8dc;
-  --color-orange-400: #ff8c5a;
-  --color-orange-500: #ff6b35;
-  --color-orange-600: #e55a25;
-  --color-orange-700: #c44a1a;
-  --color-orange: #ff6b35;
+  /* "orange" names are kept from the original sihaimodel port to avoid a
+     sweeping rename across every component that references this scale
+     (text-orange-500, bg-orange-50, --orange, .btn-orange, etc.) - the
+     VALUES are Google's own published Material blue swatches (Blue 50
+     through 700), i.e. this is the site's Google-Blue brand accent. */
+  --color-orange-50: #e8f0fe;
+  --color-orange-100: #d2e3fc;
+  --color-orange-400: #669df6;
+  --color-orange-500: #4285f4;
+  --color-orange-600: #1a73e8;
+  --color-orange-700: #1967d2;
+  --color-orange: #4285f4;
 
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
@@ -60,10 +65,11 @@
    etc. references must resolve to something already defined - Tailwind v4
    evaluates `@theme inline` values at build time, not at CSS-cascade time. */
 :root {
-  --orange: #ff6b35;
-  --orange-dark: #e55a25;
-  --orange-light: #fff5f0;
-  --orange-mid: #ffe8dc;
+  /* Same naming-vs-value note as --color-orange-* above: Google Blue. */
+  --orange: #4285f4;
+  --orange-dark: #1a73e8;
+  --orange-light: #e8f0fe;
+  --orange-mid: #d2e3fc;
   --sidebar-bg: #ffffff;
   --page-bg: #f8fafc;
   --card-bg: #ffffff;
@@ -220,9 +226,9 @@
   @apply font-semibold px-4 py-2 rounded-xl transition-all duration-150 flex items-center gap-2 text-sm border;
   color: var(--orange);
   border-color: var(--orange);
-  background: rgba(255, 107, 53, 0.08);
+  background: rgba(66, 133, 244, 0.08);
   &:hover {
-    background: rgba(255, 107, 53, 0.16);
+    background: rgba(66, 133, 244, 0.16);
   }
 }
 
@@ -241,9 +247,9 @@
 
 @utility badge-orange {
   @apply text-[9px] font-black px-2 py-1 rounded-lg;
-  background: rgba(255, 107, 53, 0.08);
+  background: rgba(66, 133, 244, 0.08);
   color: var(--orange);
-  border: 1px solid rgba(255, 107, 53, 0.25);
+  border: 1px solid rgba(66, 133, 244, 0.25);
 }
 
 @utility badge-sim {
@@ -303,11 +309,11 @@ input[type='range']::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--orange);
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.15);
+  box-shadow: 0 0 0 4px rgba(66, 133, 244, 0.15);
 }
 
 .engine-glow {
-  background: radial-gradient(ellipse 60% 50% at 50% 55%, rgba(255, 107, 53, 0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 55%, rgba(66, 133, 244, 0.12) 0%, transparent 70%);
 }
 
 .step-pill {

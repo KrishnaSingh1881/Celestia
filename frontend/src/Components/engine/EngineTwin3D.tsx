@@ -123,7 +123,7 @@ function CylinderSubassembly({
         </mesh>
         <mesh position={[isLeft ? -0.4 : 0.4, 0, 0]}>
           <boxGeometry args={[0.02, 0.28, 0.72]} />
-          <meshPhysicalMaterial color={isSelected ? '#FF6B35' : '#CBD5E1'} metalness={0.92} roughness={0.2} />
+          <meshPhysicalMaterial color={isSelected ? '#4285F4' : '#CBD5E1'} metalness={0.92} roughness={0.2} />
         </mesh>
         <group ref={rockerRef} position={[isLeft ? -0.15 : 0.15, 0.25, 0]}>
           <mesh rotation={[0, 0, Math.PI / 2]}>
