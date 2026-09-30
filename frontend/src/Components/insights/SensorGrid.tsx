@@ -1,57 +1,126 @@
 import { motion } from 'framer-motion';
-import { AVAILABLE_CHANNELS, type ChannelName } from '../../types/contracts';
-import { useEngineStore } from '../../store/useEngineStore';
-
-const CHANNEL_META: Record<ChannelName, { label: string; unit: string; scale?: number; toFixed: number }> = {
-  MAP: { label: 'Manifold Pressure', unit: 'kPa', scale: 1e-3, toFixed: 1 },
-  CHT: { label: 'Cylinder Head Temp', unit: 'K', toFixed: 1 },
-  coolant_temp: { label: 'Coolant Temp', unit: 'K', toFixed: 1 },
-  oil_pressure: { label: 'Oil Pressure', unit: 'bar', scale: 1e-5, toFixed: 2 },
-  oil_temp: { label: 'Oil Temp', unit: 'K', toFixed: 1 },
-  EGT_proxy: { label: 'Exhaust Gas Temp', unit: 'K', toFixed: 0 },
-  rpm: { label: 'Engine Speed', unit: 'RPM', toFixed: 0 },
-};
-
-function statusFor(flagged: boolean): 'nominal' | 'warning' | 'critical' {
-  return flagged ? 'warning' : 'nominal';
-}
+import { useMissionStore } from '../../store/useMissionStore';
 
 export default function SensorGrid() {
-  const prediction = useEngineStore((s) => s.prediction);
-  const residual = useEngineStore((s) => s.residual);
-  const connected = useEngineStore((s) => s.connected);
+  const missionState = useMissionStore((s) => s.missionState);
+  const { channels } = missionState;
+
+  const sensorCards = [
+    {
+      id: 'cht',
+      label: 'Cylinder Head Temp (CHT)',
+      channel: 'CHT',
+      data: channels.cht,
+      unit: '°C',
+    },
+    {
+      id: 'coolantTemp',
+      label: 'Coolant Manifold Temp',
+      channel: 'coolant_temp',
+      data: channels.coolantTemp,
+      unit: '°C',
+    },
+    {
+      id: 'oilPressure',
+      label: 'Oil Gallery Pressure',
+      channel: 'oil_pressure',
+      data: channels.oilPressure,
+      unit: 'bar',
+    },
+    {
+      id: 'oilTemp',
+      label: 'Sump Oil Temperature',
+      channel: 'oil_temp',
+      data: channels.oilTemp,
+      unit: '°C',
+    },
+    {
+      id: 'rpm',
+      label: 'Engine Speed (RPM)',
+      channel: 'rpm',
+      data: channels.rpm,
+      unit: 'RPM',
+    },
+    {
+      id: 'map',
+      label: 'Manifold Air Pressure',
+      channel: 'MAP',
+      data: channels.map,
+      unit: 'kPa',
+    },
+    {
+      id: 'egt',
+      label: 'Exhaust Gas Temp',
+      channel: 'EGT_proxy',
+      data: channels.egt,
+      unit: '°C',
+    },
+    {
+      id: 'vibration',
+      label: 'Crankshaft Vibration',
+      channel: 'vibration',
+      data: channels.vibration,
+      unit: 'g RMS',
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-      {AVAILABLE_CHANNELS.map((ch, i) => {
-        const meta = CHANNEL_META[ch];
-        const raw = prediction?.y_hat[ch];
-        const value = typeof raw === 'number' ? raw * (meta.scale ?? 1) : undefined;
-        const flagged = Boolean(residual?.flags[ch]);
-        const status = statusFor(flagged);
-        const z = residual?.z[ch];
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5">
+      {sensorCards.map((sc, i) => {
+        const valStr =
+          typeof sc.data.current === 'number'
+            ? sc.id === 'vibration'
+              ? sc.data.current.toFixed(2)
+              : sc.id === 'oilPressure'
+              ? sc.data.current.toFixed(1)
+              : Math.round(sc.data.current).toString()
+            : String(sc.data.current);
+
+        const isSensorFault = (sc.data.status as string) === 'sensor_fault' || (missionState.scenarioId === 'sensor' && sc.id === 'cht' && missionState.timeSeconds >= 40);
+        const isCritical = sc.data.status === 'critical';
+        const isWarning = sc.data.status === 'warning';
+
+        const statusBadgeColor = isSensorFault
+          ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30'
+          : isCritical
+          ? 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+          : isWarning
+          ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+
+        const dotColor = isSensorFault
+          ? 'bg-cyan-400'
+          : isCritical
+          ? 'bg-rose-500 animate-pulse'
+          : isWarning
+          ? 'bg-amber-400'
+          : 'bg-emerald-400';
 
         return (
           <motion.div
-            key={ch}
-            className="card-sm"
-            initial={{ opacity: 0, y: 8 }}
+            key={sc.id}
+            className="p-3 rounded-xl border border-slate-800 bg-slate-900/70 shadow-sm flex flex-col justify-between"
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: i * 0.04 }}
+            transition={{ duration: 0.25, delay: i * 0.02 }}
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="label-xs">{meta.label}</span>
-              <span className={status === 'critical' ? 'dot-critical' : status === 'warning' ? 'dot-warning' : 'dot-healthy'} />
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-[10px] font-bold text-slate-400 truncate" title={sc.label}>
+                {sc.label}
+              </span>
+              <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="kpi-value-dark">{connected && value !== undefined ? value.toFixed(meta.toFixed) : '--'}</span>
-              <span className="text-xs font-semibold text-slate-400">{meta.unit}</span>
+
+            <div className="flex items-baseline gap-1 my-1">
+              <span className="text-lg font-black font-mono text-slate-100">{valStr}</span>
+              <span className="text-[10px] font-semibold text-slate-400">{sc.unit}</span>
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[10px] text-slate-400 font-mono">channel: {ch}</span>
-              {z !== undefined && (
-                <span className={`text-[10px] font-mono font-bold ${flagged ? 'text-amber-600' : 'text-slate-300'}`}>z={z.toFixed(2)}</span>
-              )}
+
+            <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-slate-800/80">
+              <span className="font-mono text-slate-500 truncate">{sc.channel}</span>
+              <span className={`px-1.5 py-0.2 rounded font-mono font-bold text-[9px] border ${statusBadgeColor}`}>
+                {isSensorFault ? 'FAULT' : `z=${sc.data.zScore}`}
+              </span>
             </div>
           </motion.div>
         );

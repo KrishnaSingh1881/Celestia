@@ -1,19 +1,17 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Html, OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Group, Mesh, PointLight } from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useEngineStore } from '../../store/useEngineStore';
+import { useMissionStore } from '../../store/useMissionStore';
 import { rpmToSpeed, thermalTarget, vibrationJitter } from './engineVisuals';
+import {
+  getComponentDetails,
+  type EngineComponentId,
+} from '../../types/engineComponents';
 
-// Ported and adapted from a reference 3D model in this repo's sihaimodel-main
-// baseline (a hand-built, primitive-based procedural model, not an external
-// downloaded asset) — the sub-assembly decomposition below matches a real
-// 4-cylinder horizontally-opposed, turbocharged, dry-sump, dual-ignition
-// aero engine's documented architecture closely enough that this was judged
-// more accurate than any downloadable stand-in model would be. Per explicit
-// requirement, nothing in this file names any specific manufacturer — every
-// label just says "Engine".
 const ENGINE_SPECS = {
   type: '4-Cylinder, 4-Stroke Horizontally-Opposed Boxer',
   displacement: '1,211 cm³',
@@ -31,8 +29,13 @@ const MAT = {
   orangeConduit: { color: '#FF6B35', metalness: 0.12, roughness: 0.42 },
   fuelRailBlue: { color: '#003087', metalness: 0.88, roughness: 0.28 },
   cutawayGlass: {
-    color: '#94A3B8', transparent: true, opacity: 0.18, roughness: 0.2, metalness: 0.8,
-    side: THREE.DoubleSide, depthWrite: false,
+    color: '#94A3B8',
+    transparent: true,
+    opacity: 0.18,
+    roughness: 0.2,
+    metalness: 0.8,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   },
 } as const;
 
@@ -40,11 +43,39 @@ function mat(base: Record<string, unknown>, extra: Record<string, unknown> = {})
   return { ...base, ...extra };
 }
 
+// ─── Visual Selection Highlight Bracket ────────────────────────────────────
+function SelectionHighlightBox({
+  size = [1.2, 1.2, 1.2],
+  position = [0, 0, 0],
+  color = '#f59e0b',
+}: {
+  size?: [number, number, number];
+  position?: [number, number, number];
+  color?: string;
+}) {
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={size} />
+        <meshBasicMaterial color={color} wireframe transparent opacity={0.65} />
+      </mesh>
+    </group>
+  );
+}
+
 // ─── Animated flow streamline (oil/coolant/air flow visualization) ─────────
 function FlowStreamline({
-  points, color = '#38BDF8', speed = 1.0, active = true, size = 0.045,
+  points,
+  color = '#38BDF8',
+  speed = 1.0,
+  active = true,
+  size = 0.045,
 }: {
-  points: [number, number, number][]; color?: string; speed?: number; active?: boolean; size?: number;
+  points: [number, number, number][];
+  color?: string;
+  speed?: number;
+  active?: boolean;
+  size?: number;
 }) {
   const meshRef = useRef<Mesh>(null);
   const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), [points]);
@@ -74,18 +105,44 @@ function FlowStreamline({
 
 // ─── Cylinder sub-assembly (finned air-cooled barrel + liquid-cooled head) ──
 function CylinderSubassembly({
-  position, rotation, isLeft, pistonRef, rodRef, rockerRef, headMeshRef, sparkLightRef, cht, isCutaway, isSelected, onSelect,
+  position,
+  rotation,
+  isLeft,
+  pistonRef,
+  rodRef,
+  rockerRef,
+  headMeshRef,
+  sparkLightRef,
+  cht,
+  isCutaway,
+  isSelected,
+  onSelect,
 }: {
-  position: [number, number, number]; rotation: [number, number, number]; isLeft: boolean;
-  pistonRef: React.RefObject<Group | null>; rodRef: React.RefObject<Group | null>; rockerRef: React.RefObject<Group | null>;
-  headMeshRef: React.RefObject<Mesh | null>; sparkLightRef: React.RefObject<PointLight | null>;
-  cht: number; isCutaway: boolean; isSelected: boolean; onSelect: (id: string) => void;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  isLeft: boolean;
+  pistonRef: React.RefObject<Group | null>;
+  rodRef: React.RefObject<Group | null>;
+  rockerRef: React.RefObject<Group | null>;
+  headMeshRef: React.RefObject<Mesh | null>;
+  sparkLightRef: React.RefObject<PointLight | null>;
+  cht: number;
+  isCutaway: boolean;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }) {
   const headThermalColor = useMemo(() => thermalTarget(cht, 105, 128, 142), [cht]);
   const thermalEmissive = cht > 105 ? Math.min((cht - 105) / 35, 1.2) : 0;
 
   return (
-    <group position={position} rotation={rotation}>
+    <group
+      position={position}
+      rotation={rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect('cylinder');
+      }}
+    >
       <group>
         <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.54, 0.54, 1.48, 28, 1, isCutaway, 0, isCutaway ? Math.PI * 1.3 : Math.PI * 2]} />
@@ -106,16 +163,14 @@ function CylinderSubassembly({
       </group>
 
       <group position={[isLeft ? -0.98 : 0.98, 0, 0]}>
-        <mesh
-          ref={headMeshRef}
-          castShadow
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect('cylinder');
-          }}
-        >
+        <mesh ref={headMeshRef} castShadow>
           <boxGeometry args={[0.52, 1.22, 1.22]} />
-          <meshPhysicalMaterial {...mat(MAT.billetAlu)} emissive={headThermalColor} emissiveIntensity={thermalEmissive} clearcoat={0.3} />
+          <meshPhysicalMaterial
+            {...mat(MAT.billetAlu)}
+            emissive={isSelected ? '#f59e0b' : headThermalColor}
+            emissiveIntensity={isSelected ? 0.6 : thermalEmissive}
+            clearcoat={0.3}
+          />
         </mesh>
         <mesh position={[isLeft ? -0.32 : 0.32, 0, 0]} castShadow>
           <boxGeometry args={[0.14, 1.1, 1.1]} />
@@ -123,7 +178,7 @@ function CylinderSubassembly({
         </mesh>
         <mesh position={[isLeft ? -0.4 : 0.4, 0, 0]}>
           <boxGeometry args={[0.02, 0.28, 0.72]} />
-          <meshPhysicalMaterial color={isSelected ? '#4285F4' : '#CBD5E1'} metalness={0.92} roughness={0.2} />
+          <meshPhysicalMaterial color={isSelected ? '#f59e0b' : '#CBD5E1'} metalness={0.92} roughness={0.2} />
         </mesh>
         <group ref={rockerRef} position={[isLeft ? -0.15 : 0.15, 0.25, 0]}>
           <mesh rotation={[0, 0, Math.PI / 2]}>
@@ -189,23 +244,27 @@ function CylinderSubassembly({
         </group>
       </group>
 
-      <mesh position={[isLeft ? -0.45 : 0.45, -0.38, 0.15]} rotation={[0.1, 0, isLeft ? 0.35 : -0.35]}>
-        <cylinderGeometry args={[0.038, 0.038, 0.95, 10]} />
-        <meshPhysicalMaterial {...mat(MAT.billetAlu)} />
-      </mesh>
-      <mesh position={[isLeft ? -0.45 : 0.45, -0.38, -0.15]} rotation={[-0.1, 0, isLeft ? 0.35 : -0.35]}>
-        <cylinderGeometry args={[0.038, 0.038, 0.95, 10]} />
-        <meshPhysicalMaterial {...mat(MAT.billetAlu)} />
-      </mesh>
+      {/* Visual Highlight Wireframe when selected */}
+      {isSelected && (
+        <SelectionHighlightBox size={[2.2, 1.4, 1.4]} position={[isLeft ? -0.5 : 0.5, 0, 0]} color="#f59e0b" />
+      )}
     </group>
   );
 }
 
 // ─── Crankcase + crankshaft + camshaft ──────────────────────────────────────
 function CrankcaseSection({
-  isCutaway, crankRef, camRef, onSelect,
+  isCutaway,
+  crankRef,
+  camRef,
+  isSelected,
+  onSelect,
 }: {
-  isCutaway: boolean; crankRef: React.RefObject<Group | null>; camRef: React.RefObject<Group | null>; onSelect: (id: string) => void;
+  isCutaway: boolean;
+  crankRef: React.RefObject<Group | null>;
+  camRef: React.RefObject<Group | null>;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }) {
   return (
     <group
@@ -228,60 +287,41 @@ function CrankcaseSection({
       </group>
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[0.03, 1.66, 2.18]} />
-        <meshPhysicalMaterial color="#334155" metalness={0.95} roughness={0.25} />
+        <meshPhysicalMaterial color={isSelected ? '#f59e0b' : '#334155'} metalness={0.95} roughness={0.25} />
       </mesh>
-      {[-1.15, 1.15].flatMap((x) =>
-        [0.65, -0.65].map((y, j) => (
-          <mesh key={`${x}-${j}`} position={[x, y, -0.85]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.12, 0.12, 0.22, 14]} />
-            <meshPhysicalMaterial {...mat(MAT.billetAlu)} />
-          </mesh>
-        )),
-      )}
 
       <group ref={crankRef} position={[0, 0, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.18, 0.18, 2.05, 20]} />
           <meshPhysicalMaterial {...mat(MAT.steelPolished)} />
         </mesh>
-        {[-0.62, -0.22, 0.22, 0.62].map((z, idx) => {
-          const isFlipped = idx % 2 === 1;
-          return (
-            <group key={idx} position={[0, 0, z]}>
-              <mesh position={[0, isFlipped ? -0.26 : 0.26, 0]}>
-                <boxGeometry args={[0.62, 0.26, 0.12]} />
-                <meshPhysicalMaterial {...mat(MAT.steelForged)} />
-              </mesh>
-              <mesh position={[0, isFlipped ? 0.32 : -0.32, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.12, 0.12, 0.16, 16]} />
-                <meshPhysicalMaterial {...mat(MAT.steelPolished)} />
-              </mesh>
-            </group>
-          );
-        })}
       </group>
 
-      <group ref={camRef} position={[0, -0.52, 0]}>
+      <group ref={camRef} position={[0, -0.48, 0]}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.09, 0.09, 1.95, 16]} />
+          <cylinderGeometry args={[0.075, 0.075, 1.95, 14]} />
           <meshPhysicalMaterial {...mat(MAT.steelPolished)} />
         </mesh>
-        {[-0.72, -0.52, -0.32, -0.12, 0.12, 0.32, 0.52, 0.72].map((z, i) => (
-          <mesh key={i} position={[0, 0.04, z]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.14, 0.11, 0.07, 14]} />
-            <meshPhysicalMaterial {...mat(MAT.steelForged)} />
-          </mesh>
-        ))}
       </group>
+
+      {isSelected && (
+        <SelectionHighlightBox size={[1.5, 1.8, 2.3]} position={[0, 0, 0]} color="#f59e0b" />
+      )}
     </group>
   );
 }
 
 // ─── Propeller speed reduction gearbox ──────────────────────────────────────
 function GearboxSubassembly({
-  isCutaway, propRef, onSelect,
+  isCutaway,
+  propRef,
+  isSelected,
+  onSelect,
 }: {
-  isCutaway: boolean; propRef: React.RefObject<Group | null>; onSelect: (id: string) => void;
+  isCutaway: boolean;
+  propRef: React.RefObject<Group | null>;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }) {
   return (
     <group
@@ -308,22 +348,25 @@ function GearboxSubassembly({
           <cylinderGeometry args={[0.18, 0.18, 0.18, 20]} />
           <meshPhysicalMaterial {...mat(MAT.steelPolished)} />
         </mesh>
-        {[0, 1, 2, 3, 4, 5].map((i) => {
-          const a = (i * Math.PI) / 3;
-          return (
-            <mesh key={i} position={[Math.cos(a) * 0.38, Math.sin(a) * 0.38, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.038, 0.038, 0.09, 8]} />
-              <meshPhysicalMaterial color="#1E293B" metalness={0.95} roughness={0.15} />
-            </mesh>
-          );
-        })}
       </group>
+
+      {isSelected && (
+        <SelectionHighlightBox size={[1.2, 1.2, 1.1]} position={[0, 0, 0.1]} color="#f59e0b" />
+      )}
     </group>
   );
 }
 
 // ─── Dry-sump lubrication system ────────────────────────────────────────────
-function LubricationSubassembly({ oilPressurePa, onSelect }: { oilPressurePa: number; onSelect: (id: string) => void }) {
+function LubricationSubassembly({
+  oilPressurePa,
+  isSelected,
+  onSelect,
+}: {
+  oilPressurePa: number;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}) {
   const oilPressureBar = oilPressurePa / 1e5;
   const flowSpeed = Math.min(Math.max(oilPressureBar, 1.0), 5.0) / 3.8;
   const active = oilPressureBar > 0.8;
@@ -363,12 +406,22 @@ function LubricationSubassembly({ oilPressurePa, onSelect }: { oilPressurePa: nu
       </group>
       <FlowStreamline points={[[1.85, -0.65, -0.25], [1.55, -0.78, 0.45], [0.95, -0.72, 0.85], [0.42, -0.68, 0.95]]} color="#F59E0B" speed={flowSpeed} active={active} />
       <FlowStreamline points={[[0.42, -0.68, 0.95], [-0.2, -0.8, 0.2], [-0.6, -0.75, -0.4], [-0.85, -0.58, -0.75]]} color="#F59E0B" speed={flowSpeed} active={active} />
+
+      {isSelected && (
+        <SelectionHighlightBox size={[1.0, 1.5, 1.0]} position={[1.85, -0.15, -0.25]} color="#f59e0b" />
+      )}
     </group>
   );
 }
 
 // ─── Dual electronic ignition + injection ───────────────────────────────────
-function IgnitionSubassembly({ onSelect }: { onSelect: (id: string) => void }) {
+function IgnitionSubassembly({
+  isSelected,
+  onSelect,
+}: {
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}) {
   return (
     <group
       onClick={(e) => {
@@ -394,22 +447,24 @@ function IgnitionSubassembly({ onSelect }: { onSelect: (id: string) => void }) {
         <cylinderGeometry args={[0.042, 0.042, 1.75, 12]} />
         <meshPhysicalMaterial {...mat(MAT.fuelRailBlue)} />
       </mesh>
-      <group position={[0, 0.45, -1.35]}>
-        <mesh position={[-0.38, 0, 0]} castShadow>
-          <boxGeometry args={[0.42, 0.52, 0.18]} />
-          <meshPhysicalMaterial color="#1E293B" metalness={0.8} roughness={0.3} />
-        </mesh>
-        <mesh position={[0.38, 0, 0]} castShadow>
-          <boxGeometry args={[0.42, 0.52, 0.18]} />
-          <meshPhysicalMaterial color="#1E293B" metalness={0.8} roughness={0.3} />
-        </mesh>
-      </group>
+
+      {isSelected && (
+        <SelectionHighlightBox size={[2.4, 0.8, 2.0]} position={[0, 0.85, 0]} color="#f59e0b" />
+      )}
     </group>
   );
 }
 
 // ─── Hybrid split cooling architecture ──────────────────────────────────────
-function CoolingSubassembly({ rpm, onSelect }: { rpm: number; onSelect: (id: string) => void }) {
+function CoolingSubassembly({
+  rpm,
+  isSelected,
+  onSelect,
+}: {
+  rpm: number;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+}) {
   const normRpm = Math.max(rpm, 100) / 4800;
   const active = rpm > 100;
 
@@ -443,20 +498,36 @@ function CoolingSubassembly({ rpm, onSelect }: { rpm: number; onSelect: (id: str
           />
         ),
       )}
-      {[-1.35, 1.35].map((x, i) => (
-        <FlowStreamline key={i} points={[[x * 0.7, 0.3, 1.8], [x * 0.9, 0.1, 0.8], [x * 1.2, -0.2, -1.2]]} color="#e2e8f0" speed={normRpm * 2.2} active={active} size={0.032} />
-      ))}
+
+      {isSelected && (
+        <SelectionHighlightBox size={[1.8, 1.2, 2.2]} position={[0, 0.1, -0.4]} color="#06b6d4" />
+      )}
     </group>
   );
 }
 
 // ─── Sensor pin (needle + luminous beacon + HTML tooltip) ───────────────────
 function SensorPin3D({
-  position, label, value, unit, status,
+  position,
+  label,
+  value,
+  unit,
+  status,
 }: {
-  position: [number, number, number]; label: string; value: string; unit: string; status: 'nominal' | 'warning' | 'critical';
+  position: [number, number, number];
+  label: string;
+  value: string;
+  unit: string;
+  status: 'nominal' | 'warning' | 'critical' | 'sensor_fault';
 }) {
-  const color = status === 'critical' ? '#EF4444' : status === 'warning' ? '#F59E0B' : '#003087';
+  const color =
+    status === 'critical'
+      ? '#ef4444'
+      : status === 'warning'
+      ? '#f59e0b'
+      : status === 'sensor_fault'
+      ? '#a855f7'
+      : '#10b981';
 
   return (
     <group position={position}>
@@ -468,22 +539,20 @@ function SensorPin3D({
         <sphereGeometry args={[0.042, 16, 16]} />
         <meshBasicMaterial color={color} />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.055, 0.085, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={0.4} side={THREE.DoubleSide} />
-      </mesh>
       <Html position={[0, 0.22, 0]} distanceFactor={7.5} center className="pointer-events-none select-none">
         <div
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl shadow-md border backdrop-blur-md ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl shadow-lg border backdrop-blur-md ${
             status === 'critical'
-              ? 'bg-red-50 text-red-900 border-red-400'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-500'
               : status === 'warning'
-                ? 'bg-amber-50 text-amber-900 border-amber-400'
-                : 'bg-white/95 text-gray-900 border-gray-200'
+              ? 'bg-amber-950/90 text-amber-200 border-amber-500'
+              : status === 'sensor_fault'
+              ? 'bg-purple-950/90 text-purple-200 border-purple-500'
+              : 'bg-slate-950/90 text-slate-100 border-slate-800'
           }`}
           style={{ whiteSpace: 'nowrap' }}
         >
-          <span className={`w-2 h-2 rounded-full ${status === 'critical' ? 'bg-red-500 animate-ping' : status === 'warning' ? 'bg-amber-500 animate-pulse' : 'bg-[#003087]'}`} />
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }} />
           <div className="flex flex-col text-left leading-none">
             <span className="text-[8px] font-black uppercase tracking-wider opacity-75">{label}</span>
             <div className="flex items-baseline gap-0.5 mt-0.5">
@@ -497,46 +566,46 @@ function SensorPin3D({
   );
 }
 
-const SUBSYSTEM_INFO: Record<string, { title: string; desc: string }> = {
-  crankcase: {
-    title: 'Power Section: Vertically-Split Crankcase',
-    desc: 'High-strength cast aluminium crankcase split along the vertical plane, housing a multi-piece counterweighted crankshaft, a central camshaft, and hydraulic pushrod lifters.',
-  },
-  gearbox: {
-    title: 'Propeller Speed Reduction Unit',
-    desc: 'Front-mounted helical gear reduction at a fixed 2.43:1 ratio, with an integrated slipper clutch and torsional spring pack isolating propeller harmonics from the crankshaft.',
-  },
-  lubrication: {
-    title: 'Dry-Sump Forced Lubrication',
-    desc: 'Flat-bottomed block with no conventional oil pan — an external de-aerating tank, scavenge and pressure pumps, and a spin-on filter keep oil circulating under all attitudes.',
-  },
-  ignition: {
-    title: 'Dual Electronic Fuel Injection & Ignition',
-    desc: 'Twin intake runners feed electronic injectors per cylinder; redundant ECU lanes and dual spark plugs per head provide fail-safe combustion control.',
-  },
-  cooling: {
-    title: 'Hybrid Split Cooling',
-    desc: 'Air-cooled finned barrels paired with liquid-cooled heads, connected through a central coolant distribution manifold.',
-  },
-  cylinder: {
-    title: 'Boxer Cylinder Pair',
-    desc: 'Horizontally-opposed cylinders reciprocate in mirrored phase for primary dynamic balance; each head carries its own thermal sensor.',
-  },
-};
+// ─── Camera Controller for Presets ──────────────────────────────────────────
+function CameraPresetController({ preset }: { preset: 'iso' | 'front' | 'left' | 'right' | 'top' }) {
+  const { camera } = useThree();
+  const controlsRef = useThree((state) => state.controls as OrbitControlsImpl | null);
+
+  useEffect(() => {
+    let targetPos: [number, number, number] = [3.6, 2.4, 4.6];
+    if (preset === 'front') targetPos = [0, 0.5, 5.2];
+    else if (preset === 'left') targetPos = [-5.2, 0.8, 0.2];
+    else if (preset === 'right') targetPos = [5.2, 0.8, 0.2];
+    else if (preset === 'top') targetPos = [0.1, 6.0, 0.1];
+
+    camera.position.set(...targetPos);
+    if (controlsRef) {
+      controlsRef.target.set(0, 0.05, 0);
+      controlsRef.update();
+    }
+  }, [preset, camera, controlsRef]);
+
+  return null;
+}
 
 function EngineAssembly({
-  isCutaway, showPins, selectedSubsystem, onSelectSubsystem,
+  isCutaway,
+  showPins,
+  selectedSubsystem,
+  onSelectSubsystem,
 }: {
-  isCutaway: boolean; showPins: boolean; selectedSubsystem: string | null; onSelectSubsystem: (id: string) => void;
+  isCutaway: boolean;
+  showPins: boolean;
+  selectedSubsystem: string | null;
+  onSelectSubsystem: (id: string) => void;
 }) {
   const prediction = useEngineStore((s) => s.prediction);
   const connected = useEngineStore((s) => s.connected);
 
-  const rpm = connected ? (prediction?.x_hat.omega_engine_rad_s ?? 0) * 60 / (2 * Math.PI) : 0;
-  const cht = connected ? (prediction?.y_hat.CHT ?? 288.0) : 288.0; // Kelvin
+  const rpm = connected ? ((prediction?.x_hat.omega_engine_rad_s ?? 0) * 60) / (2 * Math.PI) : 0;
+  const cht = connected ? prediction?.y_hat.CHT ?? 288.0 : 288.0;
   const chtCelsius = cht - 273.15;
-  const oilPressurePa = connected ? (prediction?.y_hat.oil_pressure ?? 0) : 0;
-  const egtK = connected ? (prediction?.y_hat.EGT_proxy ?? 0) : 0;
+  const oilPressurePa = connected ? prediction?.y_hat.oil_pressure ?? 0 : 0;
   const isRunning = connected && rpm > 100;
 
   const groupRef = useRef<Group>(null);
@@ -593,8 +662,6 @@ function EngineAssembly({
       });
     }
 
-    // Idle mechanical jitter, scaled by rpm only (no vibration sensor channel
-    // exists in this project's telemetry yet - this is cosmetic, not data-driven).
     if (groupRef.current && isRunning && !isAtRest) {
       const j = vibrationJitter(t, Math.min(rpm / 3000, 1.0), 0.012);
       groupRef.current.position.set(j.x, -0.1 + j.y, j.z);
@@ -605,7 +672,13 @@ function EngineAssembly({
 
   return (
     <group ref={groupRef} scale={[1.15, 1.15, 1.15]} position={[0, -0.1, 0]}>
-      <CrankcaseSection isCutaway={isCutaway} crankRef={crankRef} camRef={camRef} onSelect={onSelectSubsystem} />
+      <CrankcaseSection
+        isCutaway={isCutaway}
+        crankRef={crankRef}
+        camRef={camRef}
+        isSelected={selectedSubsystem === 'crankcase'}
+        onSelect={onSelectSubsystem}
+      />
 
       {[
         { pos: [-1.48, 0.24, 0.58] as [number, number, number], rot: [0, 0, 0] as [number, number, number], isLeft: true },
@@ -630,10 +703,26 @@ function EngineAssembly({
         />
       ))}
 
-      <GearboxSubassembly isCutaway={isCutaway} propRef={propRef} onSelect={onSelectSubsystem} />
-      <LubricationSubassembly oilPressurePa={oilPressurePa} onSelect={onSelectSubsystem} />
-      <IgnitionSubassembly onSelect={onSelectSubsystem} />
-      <CoolingSubassembly rpm={rpm} onSelect={onSelectSubsystem} />
+      <GearboxSubassembly
+        isCutaway={isCutaway}
+        propRef={propRef}
+        isSelected={selectedSubsystem === 'gearbox'}
+        onSelect={onSelectSubsystem}
+      />
+      <LubricationSubassembly
+        oilPressurePa={oilPressurePa}
+        isSelected={selectedSubsystem === 'lubrication'}
+        onSelect={onSelectSubsystem}
+      />
+      <IgnitionSubassembly
+        isSelected={selectedSubsystem === 'ignition'}
+        onSelect={onSelectSubsystem}
+      />
+      <CoolingSubassembly
+        rpm={rpm}
+        isSelected={selectedSubsystem === 'cooling'}
+        onSelect={onSelectSubsystem}
+      />
 
       {showPins && (
         <group>
@@ -658,43 +747,70 @@ function EngineAssembly({
             unit="bar"
             status={oilPressurePa < 2.0e5 ? 'critical' : oilPressurePa < 2.8e5 ? 'warning' : 'nominal'}
           />
-          <SensorPin3D
-            position={[0, 1.45, 0]}
-            label="Exhaust gas temp"
-            value={(egtK - 273.15).toFixed(0)}
-            unit="°C"
-            status="nominal"
-          />
         </group>
       )}
     </group>
   );
 }
 
-export default function EngineTwin3D() {
+interface EngineTwin3DProps {
+  height?: number | string;
+  selectedSubsystem?: string | null;
+  onSelectSubsystem?: (id: string | null) => void;
+  showInspectorCard?: boolean;
+}
+
+export default function EngineTwin3D({
+  height = 520,
+  selectedSubsystem: propSelected,
+  onSelectSubsystem: propOnSelect,
+  showInspectorCard = true,
+}: EngineTwin3DProps) {
+  const [internalSelected, setInternalSelected] = useState<string | null>(null);
   const [isCutaway, setIsCutaway] = useState(false);
   const [showPins, setShowPins] = useState(true);
-  const [selectedSubsystem, setSelectedSubsystem] = useState<string | null>(null);
+  const [cameraPreset, setCameraPreset] = useState<'iso' | 'front' | 'left' | 'right' | 'top'>('iso');
+
+  const selectedSubsystem = propSelected !== undefined ? propSelected : internalSelected;
+  const onSelectSubsystem = propOnSelect ?? setInternalSelected;
 
   const connected = useEngineStore((s) => s.connected);
   const prediction = useEngineStore((s) => s.prediction);
-  const rpm = connected ? Math.round((prediction?.x_hat.omega_engine_rad_s ?? 0) * 60 / (2 * Math.PI)) : 0;
+  const missionState = useMissionStore((s) => s.missionState);
+
+  const rpm = connected ? Math.round(((prediction?.x_hat.omega_engine_rad_s ?? 0) * 60) / (2 * Math.PI)) : 0;
   const propRpm = Math.round(rpm / ENGINE_SPECS.psruRatio);
   const cht = connected && prediction ? (prediction.y_hat.CHT - 273.15).toFixed(1) : '--';
   const oilP = connected && prediction ? (prediction.y_hat.oil_pressure / 1e5).toFixed(1) : '--';
 
+  // Details for selected component
+  const componentDetails = useMemo(() => {
+    if (!selectedSubsystem) return null;
+    return getComponentDetails(selectedSubsystem as EngineComponentId, missionState);
+  }, [selectedSubsystem, missionState]);
+
   return (
-    <div className="w-full h-[520px] lg:h-[580px] bg-gradient-to-b from-white via-slate-50 to-slate-100 border border-gray-200/90 rounded-3xl relative shadow-xs overflow-hidden select-none">
+    <div
+      className="w-full bg-gradient-to-b from-[#0b0f17] via-[#0d131f] to-[#111827] border border-slate-800 rounded-2xl relative shadow-lg overflow-hidden select-none"
+      style={{ height }}
+    >
       <Canvas shadows gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.15 }}>
         <PerspectiveCamera makeDefault position={[3.6, 2.4, 4.6]} fov={44} />
         <ambientLight intensity={0.75} />
-        <directionalLight position={[6, 9, 6]} intensity={1.9} castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0002} />
+        <directionalLight position={[6, 9, 6]} intensity={1.9} castShadow shadow-bias={-0.0002} />
         <directionalLight position={[-6, 4, -4]} intensity={0.85} color="#FFF7ED" />
         <directionalLight position={[0, -4, 5]} intensity={0.35} color="#E0F2FE" />
 
-        <EngineAssembly isCutaway={isCutaway} showPins={showPins} selectedSubsystem={selectedSubsystem} onSelectSubsystem={setSelectedSubsystem} />
+        <CameraPresetController preset={cameraPreset} />
 
-        <ContactShadows position={[0, -1.35, 0]} opacity={0.45} scale={7.5} blur={2.2} far={2.2} color="#003087" />
+        <EngineAssembly
+          isCutaway={isCutaway}
+          showPins={showPins}
+          selectedSubsystem={selectedSubsystem}
+          onSelectSubsystem={onSelectSubsystem}
+        />
+
+        <ContactShadows position={[0, -1.35, 0]} opacity={0.55} scale={7.5} blur={2.2} far={2.2} color="#000000" />
         <OrbitControls
           enableZoom
           enablePan
@@ -707,80 +823,153 @@ export default function EngineTwin3D() {
         />
       </Canvas>
 
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-gray-200/90 shadow-xs">
-          <div className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-          <span className="text-[11px] font-black tracking-wider text-gray-900 uppercase">Engine · {ENGINE_SPECS.displacement} Boxer</span>
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md text-white shadow-xs" style={{ background: connected ? '#003087' : '#64748B' }}>
+      {/* Top Left HUD Pill */}
+      <div className="absolute top-3 left-3 z-20 flex flex-col gap-2 pointer-events-none">
+        <div className="flex items-center gap-2 bg-slate-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-md">
+          <div className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          <span className="text-[10px] font-black tracking-wider text-slate-100 uppercase">
+            Modular Digital Twin · {ENGINE_SPECS.displacement} Boxer
+          </span>
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-md text-slate-950 shadow-xs" style={{ background: connected ? '#10b981' : '#64748B' }}>
             {connected ? 'SYNCHRONIZED' : 'AT REST'}
           </span>
         </div>
-        <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-gray-200/90 shadow-xs text-xs">
+
+        <div className="flex items-center gap-2.5 bg-slate-950/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-md text-xs">
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 font-semibold text-[10px] uppercase">Engine:</span>
-            <span className="font-black text-gray-900 font-mono">{connected ? `${rpm.toLocaleString()} RPM` : '0 RPM'}</span>
+            <span className="text-slate-400 font-semibold text-[10px] uppercase">Engine:</span>
+            <span className="font-black text-slate-100 font-mono">{connected ? `${rpm.toLocaleString()} RPM` : '0 RPM'}</span>
           </div>
-          <span className="text-gray-300">|</span>
+          <span className="text-slate-700">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 font-semibold text-[10px] uppercase">Prop (÷2.43):</span>
-            <span className="font-black text-orange-600 font-mono">{connected ? `${propRpm.toLocaleString()} RPM` : '0 RPM'}</span>
+            <span className="text-slate-400 font-semibold text-[10px] uppercase">Prop (÷2.43):</span>
+            <span className="font-black text-amber-400 font-mono">{connected ? `${propRpm.toLocaleString()} RPM` : '0 RPM'}</span>
           </div>
-          <span className="text-gray-300">|</span>
+          <span className="text-slate-700">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 font-semibold text-[10px] uppercase">CHT:</span>
-            <span className="font-black text-gray-900 font-mono">{cht}°C</span>
+            <span className="text-slate-400 font-semibold text-[10px] uppercase">CHT:</span>
+            <span className={`font-black font-mono ${Number(cht) > 140 ? 'text-rose-400 animate-pulse' : Number(cht) > 125 ? 'text-amber-400' : 'text-slate-100'}`}>
+              {cht}°C
+            </span>
           </div>
-          <span className="text-gray-300">|</span>
+          <span className="text-slate-700">|</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 font-semibold text-[10px] uppercase">Oil P:</span>
-            <span className="font-black text-emerald-700 font-mono">{oilP} bar</span>
+            <span className="text-slate-400 font-semibold text-[10px] uppercase">Oil P:</span>
+            <span className={`font-black font-mono ${Number(oilP) < 2.0 ? 'text-rose-400 animate-pulse' : Number(oilP) < 2.8 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {oilP} bar
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2.5">
-        <div className="flex items-center gap-2">
+      {/* Top Right Controls & Viewpoint Presets */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Camera View Presets */}
+          <div className="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md p-1 rounded-xl border border-slate-800 text-[10px] font-bold">
+            {(['iso', 'front', 'left', 'right', 'top'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setCameraPreset(p)}
+                className={`px-2 py-0.5 rounded-lg uppercase transition-colors cursor-pointer ${
+                  cameraPreset === p ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={`Set camera view to ${p}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => setIsCutaway((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs backdrop-blur-md cursor-pointer border ${
-              isCutaway ? 'bg-[#003087] text-white border-blue-600' : 'bg-white/95 text-gray-700 border-gray-200 hover:bg-gray-50'
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer border ${
+              isCutaway ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-950/85 text-slate-300 border-slate-800 hover:bg-slate-800'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${isCutaway ? 'bg-cyan-400 animate-ping' : 'bg-gray-400'}`} />
+            <span className={`w-2 h-2 rounded-full ${isCutaway ? 'bg-slate-950 animate-ping' : 'bg-slate-500'}`} />
             <span className="tracking-wide uppercase font-black text-[10px]">{isCutaway ? 'X-Ray: ON' : 'Solid View'}</span>
           </button>
+
           <button
             onClick={() => setShowPins((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs backdrop-blur-md cursor-pointer border ${
-              showPins ? 'bg-orange-500 text-white border-orange-600' : 'bg-white/95 text-gray-700 border-gray-200 hover:bg-gray-50'
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md backdrop-blur-md cursor-pointer border ${
+              showPins ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-slate-950/85 text-slate-300 border-slate-800 hover:bg-slate-800'
             }`}
           >
             <span className="tracking-wide uppercase font-black text-[10px]">Pins: {showPins ? 'ON' : 'OFF'}</span>
           </button>
         </div>
 
-        {selectedSubsystem && SUBSYSTEM_INFO[selectedSubsystem] && (
-          <div className="bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border border-blue-200 shadow-lg flex flex-col gap-1 max-w-[270px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-black uppercase tracking-wider text-[#003087]">Subsystem Inspector</span>
-              <button onClick={() => setSelectedSubsystem(null)} className="text-gray-400 hover:text-gray-700 text-xs font-bold px-1.5 py-0.5 rounded-md hover:bg-gray-100">
+        {/* Detailed Component Inspector Overlay (when component is selected) */}
+        {showInspectorCard && componentDetails && (
+          <div className="bg-slate-950/95 backdrop-blur-md p-3.5 rounded-xl border border-amber-500/50 shadow-2xl flex flex-col gap-2 max-w-[320px] text-left">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-[9px] font-black uppercase tracking-wider text-amber-400">
+                  {componentDetails.category}
+                </span>
+              </div>
+              <button
+                onClick={() => onSelectSubsystem(null)}
+                className="text-slate-400 hover:text-slate-100 text-xs font-bold px-1.5 py-0.5 rounded-md hover:bg-slate-800 cursor-pointer"
+                title="Deselect component"
+              >
                 ✕
               </button>
             </div>
-            <p className="text-xs font-black text-gray-900 leading-tight">{SUBSYSTEM_INFO[selectedSubsystem].title}</p>
-            <p className="text-[10.5px] text-gray-600 leading-snug mt-0.5">{SUBSYSTEM_INFO[selectedSubsystem].desc}</p>
+
+            <div>
+              <div className="text-xs font-black text-slate-100">{componentDetails.name}</div>
+              <p className="text-[10px] text-slate-300 mt-1 leading-snug">{componentDetails.stateText}</p>
+            </div>
+
+            {/* Component Health & Status */}
+            <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px]">
+              <span className="text-slate-400 font-bold uppercase">Subsystem Health:</span>
+              <span
+                className={`font-mono font-black ${
+                  componentDetails.health >= 80 ? 'text-emerald-400' : componentDetails.health >= 50 ? 'text-amber-400' : 'text-rose-400 animate-pulse'
+                }`}
+              >
+                {componentDetails.health}%
+              </span>
+            </div>
+
+            {/* Live Telemetry Readings for this component */}
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Associated Telemetry:</span>
+              <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                {componentDetails.telemetry.map((t, idx) => (
+                  <div key={idx} className="p-1.5 rounded bg-slate-900/80 border border-slate-800 flex justify-between">
+                    <span className="text-slate-400 truncate">{t.label}:</span>
+                    <span className="font-bold text-slate-100">{t.value} {t.unit}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Upstream / Downstream Dependencies */}
+            <div className="text-[9px] text-slate-400 space-y-1 pt-1 border-t border-slate-800/80">
+              <div>
+                <strong className="text-slate-300">Downstream Impact:</strong>{' '}
+                {componentDetails.downstreamEffects[0]}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="absolute bottom-3 left-3 z-20 font-mono text-[9px] text-gray-500 bg-white/90 backdrop-blur-md border border-gray-200 px-3 py-1.5 rounded-xl flex items-center gap-3 shadow-xs">
-        <div className="flex items-center gap-1 text-[#003087] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#003087]" />
+      {/* Bottom Bar Info */}
+      <div className="absolute bottom-3 left-3 z-20 font-mono text-[9px] text-slate-400 bg-slate-950/90 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-3 shadow-md">
+        <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
           <span>ENGINE DIGITAL TWIN</span>
         </div>
-        <span>· Click any subassembly to inspect</span>
-        <span>· Drag to rotate</span>
-        <span>· Scroll to zoom</span>
+        <span>· Click subassembly or use inspector to highlight</span>
+        <span>· Preset buttons shift angle</span>
+        <span>· Drag to rotate · Scroll to zoom</span>
       </div>
     </div>
   );

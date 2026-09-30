@@ -14,10 +14,14 @@ import type {
 // Single place the backend's base URL is read from - never hardcode a host
 // anywhere else in the app.
 export const API_BASE_URL: string =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8000';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
+    ? String(import.meta.env.VITE_API_BASE_URL)
+    : 'http://localhost:8000';
 
 export const WS_URL: string =
-  (import.meta.env.VITE_WS_URL as string | undefined) ?? API_BASE_URL.replace(/^http/, 'ws') + '/ws/telemetry';
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL)
+    ? String(import.meta.env.VITE_WS_URL)
+    : API_BASE_URL.replace(/^http/, 'ws') + '/ws/telemetry';
 
 export interface IngestFrame {
   t: number;

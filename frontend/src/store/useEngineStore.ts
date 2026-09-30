@@ -17,6 +17,7 @@ interface EngineStoreState {
   history: PipelineResult[];
   connect: () => void;
   disconnect: () => void;
+  syncDeterministicState: (result: PipelineResult, history?: PipelineResult[]) => void;
 }
 
 const HISTORY_LIMIT = 300;
@@ -66,5 +67,20 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     socket?.close();
     socket = null;
     set({ connected: false });
+  },
+
+  syncDeterministicState: (result: PipelineResult, history?: PipelineResult[]) => {
+    set((state) => ({
+      connected: true,
+      prediction: result.prediction,
+      residual: result.residual,
+      diagnosis: result.diagnosis,
+      rul: result.rul,
+      risk: result.risk,
+      lastUpdatedAt: Date.now(),
+      history: history ?? (state.history.length > 0 && Math.abs(state.history[state.history.length - 1].t - result.t) < 5
+        ? [...state.history, result].slice(-HISTORY_LIMIT)
+        : [result]),
+    }));
   },
 }));

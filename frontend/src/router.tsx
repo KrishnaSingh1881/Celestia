@@ -6,11 +6,11 @@ import Layout from './Components/layout/Layout';
 // each into its own chunk (see docs/BUILD_ROADMAP.md Phase 18's dynamic-
 // module requirement, and modules/registry.ts for the same idea applied to
 // Dashboard panels).
+const MissionPage = lazy(() => import('./pages/MissionPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const VirtualTwin = lazy(() => import('./pages/VirtualTwin'));
 const Telemetry = lazy(() => import('./pages/Telemetry'));
 const Health = lazy(() => import('./pages/Health'));
-const MissionControl = lazy(() => import('./pages/MissionControl'));
 const FlightSimulation = lazy(() => import('./pages/FlightSimulation'));
 const SensorMonitoring = lazy(() => import('./pages/SensorMonitoring'));
 const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
@@ -23,11 +23,12 @@ export const router = createBrowserRouter([
     path: '/',
     element: <Layout />,
     children: [
-      { index: true, element: <Dashboard /> },
+      { index: true, element: <MissionPage /> },
+      { path: 'mission', element: <MissionPage /> },
+      { path: 'dashboard', element: <Dashboard /> },
       { path: 'virtualtwin', element: <VirtualTwin /> },
       { path: 'telemetry', element: <Telemetry /> },
       { path: 'health', element: <Health /> },
-      { path: 'mission', element: <MissionControl /> },
       { path: 'flight-simulation', element: <FlightSimulation /> },
       { path: 'sensors', element: <SensorMonitoring /> },
       { path: 'maintenance', element: <MaintenancePage /> },
