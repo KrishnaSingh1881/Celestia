@@ -65,18 +65,34 @@
    etc. references must resolve to something already defined - Tailwind v4
    evaluates `@theme inline` values at build time, not at CSS-cascade time. */
 :root {
-  /* Same naming-vs-value note as --color-orange-* above: Google Blue. */
-  --orange: #4285f4;
-  --orange-dark: #1a73e8;
-  --orange-light: #e8f0fe;
-  --orange-mid: #d2e3fc;
-  --sidebar-bg: #ffffff;
-  --page-bg: #f8fafc;
-  --card-bg: #ffffff;
-  --border: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  /* Aerospace Cockpit Obsidian (Dark Mode) */
+  --bg-app: #070a0f;
+  --bg-header: #090d14;
+  --bg-sidebar: #090d14;
+  --bg-card: #0f1522;
+  --bg-card-subtle: #0b1018;
+  --border-card: #1e293b;
+  --border-card-subtle: #16202e;
+  --text-ink: #f1f5f9;
+  --text-ink-secondary: #94a3b8;
+  --text-ink-muted: #64748b;
+  --electric-teal: #00f0db;
+  --electric-teal-hover: #00d2c0;
+  --electric-teal-subtle: rgba(0, 240, 219, 0.12);
+  --electric-teal-border: rgba(0, 240, 219, 0.35);
+  --amber-warm: #f59e0b;
+
+  --orange: #00f0db;
+  --orange-dark: #00d2c0;
+  --orange-light: rgba(0, 240, 219, 0.15);
+  --orange-mid: rgba(0, 240, 219, 0.3);
+  --sidebar-bg: #090d14;
+  --page-bg: #070a0f;
+  --card-bg: #0f1522;
+  --border: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
   --background: var(--page-bg);
   --foreground: var(--text-primary);
@@ -84,26 +100,74 @@
   --card-foreground: var(--text-primary);
   --popover: var(--card-bg);
   --popover-foreground: var(--text-primary);
-  --primary: var(--orange);
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
+  --primary: var(--electric-teal);
+  --primary-foreground: #070a0f;
+  --secondary: #131b28;
   --secondary-foreground: var(--text-primary);
-  --muted: #f8fafc;
+  --muted: #0f1522;
   --muted-foreground: var(--text-secondary);
-  --accent: var(--orange-light);
-  --accent-foreground: var(--orange-dark);
+  --accent: var(--electric-teal-subtle);
+  --accent-foreground: var(--electric-teal);
   --destructive: #f43f5e;
   --input: var(--border);
-  --ring: var(--orange);
+  --ring: var(--electric-teal);
   --radius: 0.625rem;
   --sidebar: var(--sidebar-bg);
   --sidebar-foreground: var(--text-primary);
-  --sidebar-primary: var(--orange);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--orange-light);
-  --sidebar-accent-foreground: var(--orange-dark);
+  --sidebar-primary: var(--electric-teal);
+  --sidebar-primary-foreground: #070a0f;
+  --sidebar-accent: var(--electric-teal-subtle);
+  --sidebar-accent-foreground: var(--electric-teal);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--orange);
+  --sidebar-ring: var(--electric-teal);
+}
+
+html.light,
+[data-theme='light'] {
+  /* Warm Ivory, Ink Black, and Electric Teal (Light Mode) */
+  --bg-app: #faf7f2; /* Warm Ivory canvas */
+  --bg-header: #f4efe6; /* Elevated warm ivory */
+  --bg-sidebar: #f4efe6; /* Elevated warm ivory */
+  --bg-card: #ffffff; /* Crisp parchment card */
+  --bg-card-subtle: #f5f0e6; /* Inset warm ivory */
+  --border-card: #e2ddd1; /* Warm parchment border */
+  --border-card-subtle: #ece6da; /* Delicate hairline border */
+  --text-ink: #0c1117; /* Deep Ink Black */
+  --text-ink-secondary: #334155; /* Slate Ink */
+  --text-ink-muted: #64748b; /* Ink wash */
+  --electric-teal: #00a896; /* Electric Teal (calibrated for high light-mode contrast) */
+  --electric-teal-hover: #008f80;
+  --electric-teal-subtle: rgba(0, 168, 150, 0.12);
+  --electric-teal-border: rgba(0, 168, 150, 0.35);
+  --amber-warm: #b45309;
+
+  --orange: #00a896;
+  --orange-dark: #008f80;
+  --orange-light: rgba(0, 168, 150, 0.12);
+  --orange-mid: rgba(0, 168, 150, 0.25);
+  --sidebar-bg: #f4efe6;
+  --page-bg: #faf7f2;
+  --card-bg: #ffffff;
+  --border: #e2ddd1;
+  --text-primary: #0c1117;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --background: var(--page-bg);
+  --foreground: var(--text-primary);
+  --card: var(--card-bg);
+  --card-foreground: var(--text-primary);
+  --popover: var(--card-bg);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--electric-teal);
+  --primary-foreground: #ffffff;
+  --secondary: #f4efe6;
+  --secondary-foreground: var(--text-primary);
+  --muted: #f5f0e6;
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--electric-teal-subtle);
+  --accent-foreground: var(--electric-teal);
+  --ring: var(--electric-teal);
 }
 
 @theme inline {
@@ -339,4 +403,142 @@ input[type='range']::-webkit-slider-thumb {
 .page-grid-bg {
   background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+/* ─── Warm Ivory, Ink Black & Electric Teal Light Mode ─────────────────────── */
+html.light,
+[data-theme='light'] {
+  color-scheme: light;
+  background-color: var(--bg-app);
+  color: var(--text-ink);
+}
+
+html.light body {
+  background-color: var(--bg-app);
+  color: var(--text-ink);
+}
+
+/* Base layout containers */
+html.light .bg-\[\#070a0f\],
+html.light main.bg-\[\#070a0f\] {
+  background-color: var(--bg-app) !important;
+}
+
+html.light .bg-\[\#090d14\],
+html.light header.bg-\[\#090d14\],
+html.light nav.bg-\[\#090d14\] {
+  background-color: var(--bg-sidebar) !important;
+}
+
+/* Card and Panel surfaces */
+html.light .bg-slate-900 {
+  background-color: var(--bg-card) !important;
+}
+
+html.light .bg-slate-950,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/85,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/95 {
+  background-color: var(--bg-card-subtle) !important;
+}
+
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/80 {
+  background-color: rgba(244, 239, 230, 0.85) !important;
+}
+
+/* Borders */
+html.light .border-slate-800,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/60 {
+  border-color: var(--border-card) !important;
+}
+
+html.light .border-slate-700,
+html.light .border-slate-700\/80 {
+  border-color: var(--border-card-subtle) !important;
+}
+
+/* Text Hierarchy - Ink Black */
+html.light .text-slate-100 {
+  color: var(--text-ink) !important;
+}
+
+html.light .text-slate-200 {
+  color: #1a222d !important;
+}
+
+html.light .text-slate-300 {
+  color: var(--text-ink-secondary) !important;
+}
+
+html.light .text-slate-400 {
+  color: var(--text-ink-muted) !important;
+}
+
+html.light .text-slate-500 {
+  color: #7b8896 !important;
+}
+
+html.light .text-slate-600 {
+  color: #9aa7b5 !important;
+}
+
+html.light .text-slate-700 {
+  color: #cfd8e3 !important;
+}
+
+/* Electric Teal Accents */
+html.light .text-cyan-400,
+html.light .text-teal-400 {
+  color: var(--electric-teal) !important;
+}
+
+html.light .bg-cyan-500\/10,
+html.light .bg-teal-500\/10,
+html.light .bg-cyan-500\/20,
+html.light .bg-teal-500\/20 {
+  background-color: var(--electric-teal-subtle) !important;
+}
+
+html.light .border-cyan-500,
+html.light .border-cyan-500\/30,
+html.light .border-cyan-500\/50,
+html.light .border-teal-500 {
+  border-color: var(--electric-teal-border) !important;
+}
+
+/* Harmonic Status Accents for Light Mode */
+html.light .text-amber-400 {
+  color: var(--amber-warm) !important;
+}
+
+html.light .text-emerald-400 {
+  color: #047857 !important;
+}
+
+html.light .text-rose-400 {
+  color: #be123c !important;
+}
+
+html.light .text-purple-400 {
+  color: #6b21a8 !important;
+}
+
+/* Light Scrollbar */
+html.light ::-webkit-scrollbar-thumb {
+  background: #ded7c8;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #cfc6b4;
+}
+
+/* Subtle dot-grid for Warm Ivory background */
+html.light .page-grid-bg {
+  background-image: linear-gradient(#ede7da 1px, transparent 1px), linear-gradient(90deg, #ede7da 1px, transparent 1px);
 }

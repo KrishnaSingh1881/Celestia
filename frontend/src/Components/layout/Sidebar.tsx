@@ -18,6 +18,7 @@ import type { IconSvgElement } from '@hugeicons/react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEngineStore } from '../../store/useEngineStore';
 import { useMissionStore } from '../../store/useMissionStore';
+import ThemeSwitcher from './ThemeSwitcher';
 
 interface NavItem {
   to: string;
@@ -95,8 +96,11 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Operator & Alert status */}
+      {/* Operator, Theme Switcher & Alert status */}
       <div className="flex flex-col items-center gap-3 w-full">
+        {/* Compact Dark/Light Mode Switcher */}
+        <ThemeSwitcher compact />
+
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="relative group cursor-pointer">

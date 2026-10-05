@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useEngineStore } from '../../store/useEngineStore';
 import { useMissionStore } from '../../store/useMissionStore';
 import { SCENARIOS } from '../../types/scenarios';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export default function TopBar() {
   const location = useLocation();
@@ -154,6 +155,11 @@ export default function TopBar() {
             </span>
           </div>
         </div>
+
+        <span className="text-slate-700 hidden sm:inline">|</span>
+
+        {/* Theme Mode Switcher (Warm Ivory / Obsidian) */}
+        <ThemeSwitcher />
       </div>
     </header>
   );
