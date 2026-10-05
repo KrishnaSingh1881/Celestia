@@ -12,9 +12,7 @@ import {
   getUpstreamNodeIds,
 } from '../../lib/causalGraphData';
 import {
-  computeParallelCausalLanes,
-  PARALLEL_LANE_Y,
-  LANE_NAMES,
+  computeOrbitSeedPositions,
   REGION_X_POSITIONS,
 } from '../../lib/causalLaneLayout';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -28,7 +26,7 @@ import type {
 } from '../../types/causalGraph';
 
 const GRAPH_WIDTH = 1480;
-const GRAPH_HEIGHT = 1180;
+const GRAPH_HEIGHT = 1000;
 const REGION_X = REGION_X_POSITIONS;
 
 interface CausalGraphProps {
@@ -83,7 +81,7 @@ export default function CausalGraph({
   const theme = useThemeStore((s) => s.theme);
   const isLight = theme === 'light';
 
-  // Simulation physics refs
+  // Simulation physics refs (OrbitGraph pattern: local force simulation, draggable, repulsion, springs, damping)
   const nodesRef = useRef<CausalNodeData[]>([]);
   const edgesRef = useRef<CausalEdgeData[]>([]);
   const alphaRef = useRef(1.0);
@@ -95,9 +93,9 @@ export default function CausalGraph({
   const [searchQuery, setSearchQuery] = useState('');
   const [overlaysOpen, setOverlaysOpen] = useState(false);
 
-  // Initialize nodes into parallel causal lanes with lane continuity across columns
+  // Initialize nodes with organic seed layout: column staging (X) + subsystem vertical breathing room (Y)
   useEffect(() => {
-    const layoutMap = computeParallelCausalLanes(
+    const layoutMap = computeOrbitSeedPositions(
       dynamicNodes,
       dynamicEdges,
       GRAPH_WIDTH,
@@ -107,10 +105,10 @@ export default function CausalGraph({
 
     const initialized: CausalNodeData[] = dynamicNodes.map((node) => {
       const existing = existingMap.get(node.id);
-      const laneCoord = layoutMap.get(node.id);
-      const targetX = laneCoord?.x ?? REGION_X[node.regionIndex] ?? 110;
-      const targetY = laneCoord?.y ?? GRAPH_HEIGHT / 2;
-      const radius = node.region === 'subsystems' || node.region === 'risk_rollup' ? 24 : 20;
+      const seedCoord = layoutMap.get(node.id);
+      const targetX = seedCoord?.x ?? REGION_X[node.regionIndex] ?? 120;
+      const targetY = seedCoord?.y ?? GRAPH_HEIGHT / 2;
+      const radius = node.region === 'subsystems' || node.region === 'risk_rollup' ? 24 : 21;
 
       return {
         ...node,
@@ -130,7 +128,7 @@ export default function CausalGraph({
     forceTick((t) => t + 1);
   }, [dynamicNodes.length]);
 
-  // Keep state and telemetry synchronized without resetting positions
+  // Keep state and telemetry synchronized without resetting user positions
   useEffect(() => {
     const freshMap = new Map(dynamicNodes.map((n) => [n.id, n]));
     nodesRef.current = nodesRef.current.map((n) => {
@@ -151,7 +149,8 @@ export default function CausalGraph({
     forceTick((t) => t + 1);
   }, [dynamicNodes, dynamicEdges]);
 
-  // Controlled force simulation settling (settles quickly in ~35 frames and stops - no continuous background loop)
+  // OrbitGraph Local Physics Simulation
+  // Repulsion + Springs + Anti-Collision + Soft Column & Subsystem Guidance + Fluid Damping
   useEffect(() => {
     let animId: number;
 
@@ -160,10 +159,10 @@ export default function CausalGraph({
       const edges = edgesRef.current;
       const alpha = alphaRef.current;
 
-      if (alpha > 0.005) {
-        const layoutMap = computeParallelCausalLanes(nodes, edges, GRAPH_WIDTH, GRAPH_HEIGHT);
+      if (alpha > 0.003) {
+        const layoutMap = computeOrbitSeedPositions(nodes, edges, GRAPH_WIDTH, GRAPH_HEIGHT);
 
-        // 1. Strong restoring force keeping nodes strictly anchored in their designated parallel causal lanes
+        // 1. Soft restoring force toward column & subsystem zone (organic structure without rigid grid locking)
         nodes.forEach((n) => {
           if (n.x == null || n.y == null) return;
 
@@ -175,26 +174,16 @@ export default function CausalGraph({
             return;
           }
 
-          const laneCoord = layoutMap.get(n.id);
-          const targetX = laneCoord?.x ?? REGION_X[n.regionIndex] ?? 110;
-          const targetY = laneCoord?.y ?? GRAPH_HEIGHT / 2;
+          const seedCoord = layoutMap.get(n.id);
+          const targetX = seedCoord?.x ?? REGION_X[n.regionIndex] ?? 120;
+          const targetY = seedCoord?.y ?? GRAPH_HEIGHT / 2;
 
-          n.vx = (n.vx ?? 0) + (targetX - n.x) * 0.18 * alpha;
-          n.vy = (n.vy ?? 0) + (targetY - n.y) * 0.16 * alpha;
-
-          // Damping
-          n.vx = (n.vx ?? 0) * 0.72;
-          n.vy = (n.vy ?? 0) * 0.72;
-
-          n.x += n.vx;
-          n.y += n.vy;
-
-          const r = n.radius ?? 20;
-          n.x = Math.max(r + 25, Math.min(GRAPH_WIDTH - r - 25, n.x));
-          n.y = Math.max(r + 55, Math.min(GRAPH_HEIGHT - r - 35, n.y));
+          // Soft guidance keeps left-to-right flow while allowing dynamic orbital flexing
+          n.vx = (n.vx ?? 0) + (targetX - n.x) * 0.045 * alpha;
+          n.vy = (n.vy ?? 0) + (targetY - n.y) * 0.030 * alpha;
         });
 
-        // 2. Pairwise repulsion to prevent local collisions between sub-lane neighbors
+        // 2. Pairwise node repulsion (OrbitGraph Principle 8)
         for (let i = 0; i < nodes.length; i++) {
           for (let j = i + 1; j < nodes.length; j++) {
             const a = nodes[i];
@@ -203,32 +192,89 @@ export default function CausalGraph({
 
             const dx = b.x - a.x;
             const dy = b.y - a.y;
-            const distSq = Math.max(25, dx * dx + dy * dy);
-            if (distSq > 50000) continue;
-
+            const distSq = Math.max(16, dx * dx + dy * dy);
             const dist = Math.sqrt(distSq);
-            const minClearance = (a.radius ?? 20) + (b.radius ?? 20) + 40;
-            if (dist < minClearance) {
-              const force = (3000 * alpha) / distSq;
-              const fx = (dx / dist) * force;
-              const fy = (dy / dist) * force;
 
+            // Inverse-square repulsion
+            const force = (3600 * alpha) / distSq;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+
+            if (a.fx == null) {
+              a.vx = (a.vx ?? 0) - fx;
+              a.vy = (a.vy ?? 0) - fy;
+            }
+            if (b.fx == null) {
+              b.vx = (b.vx ?? 0) + fx;
+              b.vy = (b.vy ?? 0) + fy;
+            }
+
+            // Anti-collision clearance to guarantee zero label / circle overlap
+            const minClearance = (a.radius ?? 22) + (b.radius ?? 22) + 52;
+            if (dist < minClearance) {
+              const overlap = minClearance - dist;
+              const push = overlap * 0.16 * alpha;
+              const px = (dx / dist) * push;
+              const py = (dy / dist) * push;
               if (a.fx == null) {
-                a.vx = (a.vx ?? 0) - fx;
-                a.vy = (a.vy ?? 0) - fy;
+                a.vx = (a.vx ?? 0) - px;
+                a.vy = (a.vy ?? 0) - py;
               }
               if (b.fx == null) {
-                b.vx = (b.vx ?? 0) + fx;
-                b.vy = (b.vy ?? 0) + fy;
+                b.vx = (b.vx ?? 0) + px;
+                b.vy = (b.vy ?? 0) + py;
               }
             }
           }
         }
 
-        alphaRef.current *= 0.91; // rapidly cools down and settles
+        // 3. Spring-like edge attraction (OrbitGraph Principle 9)
+        edges.forEach((e) => {
+          const a = nodes.find((n) => n.id === e.source);
+          const b = nodes.find((n) => n.id === e.target);
+          if (!a || !b || a.x == null || a.y == null || b.x == null || b.y == null) return;
+
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+
+          // Rest length ~230px keeps connected nodes naturally linked
+          const restLength = 230;
+          const displacement = (dist - restLength) * 0.035 * alpha;
+          const fx = (dx / dist) * displacement;
+          const fy = (dy / dist) * displacement;
+
+          if (a.fx == null) {
+            a.vx = (a.vx ?? 0) + fx;
+            a.vy = (a.vy ?? 0) + fy;
+          }
+          if (b.fx == null) {
+            b.vx = (b.vx ?? 0) - fx;
+            b.vy = (b.vy ?? 0) - fy;
+          }
+        });
+
+        // 4. Damping & Integration (OrbitGraph Principle 10 & 11)
+        nodes.forEach((n) => {
+          if (n.x == null || n.y == null) return;
+          if (n.fx != null && n.fy != null) return;
+
+          n.vx = (n.vx ?? 0) * 0.86;
+          n.vy = (n.vy ?? 0) * 0.86;
+
+          n.x += n.vx;
+          n.y += n.vy;
+
+          const r = n.radius ?? 22;
+          n.x = Math.max(r + 35, Math.min(GRAPH_WIDTH - r - 35, n.x));
+          n.y = Math.max(r + 75, Math.min(GRAPH_HEIGHT - r - 45, n.y));
+        });
+
+        alphaRef.current *= 0.982;
         forceTick((t) => t + 1);
-        animId = requestAnimationFrame(step);
       }
+
+      animId = requestAnimationFrame(step);
     };
 
     animId = requestAnimationFrame(step);
@@ -246,11 +292,12 @@ export default function CausalGraph({
     };
   };
 
+  // Interactive node dragging with OrbitGraph reheat
   const handlePointerDown = (nodeId: string) => (e: React.PointerEvent) => {
     e.stopPropagation();
     (e.target as Element).setPointerCapture?.(e.pointerId);
     draggingRef.current = nodeId;
-    alphaRef.current = 0.5;
+    alphaRef.current = 0.85; // Reheat simulation to respond dynamically
 
     const node = nodesRef.current.find((n) => n.id === nodeId);
     if (node) {
@@ -268,6 +315,7 @@ export default function CausalGraph({
     const p = toSvgPoint(e.clientX, e.clientY);
     node.fx = p.x;
     node.fy = p.y;
+    alphaRef.current = Math.max(alphaRef.current, 0.4);
     forceTick((t) => t + 1);
   };
 
@@ -281,20 +329,32 @@ export default function CausalGraph({
       }
     }
     draggingRef.current = null;
+    alphaRef.current = Math.max(alphaRef.current, 0.25);
   };
 
   const handleResetLayout = () => {
-    alphaRef.current = 0.8;
+    const layoutMap = computeOrbitSeedPositions(
+      nodesRef.current,
+      edgesRef.current,
+      GRAPH_WIDTH,
+      GRAPH_HEIGHT
+    );
     nodesRef.current.forEach((n) => {
+      const seed = layoutMap.get(n.id);
+      if (seed) {
+        n.x = seed.x;
+        n.y = seed.y;
+      }
       n.fx = null;
       n.fy = null;
       n.vx = 0;
       n.vy = 0;
     });
+    alphaRef.current = 1.0;
     forceTick((t) => t + 1);
   };
 
-  // Automatic Causal Corridor (Upstream Causes + Selected Node + Downstream Effects - Requirements 4, 8, 9)
+  // Causal Corridor computation
   const { corridorNodeIds, corridorEdgeIds, upstreamNodeIds, downstreamNodeIds } = useMemo(() => {
     if (!selectedNodeId) {
       return {
@@ -314,7 +374,6 @@ export default function CausalGraph({
     }
 
     const cEdges = new Set<string>();
-
     edgesRef.current.forEach((e) => {
       if (cNodes.has(e.source) && cNodes.has(e.target)) {
         cEdges.add(e.id);
@@ -329,21 +388,20 @@ export default function CausalGraph({
     };
   }, [selectedNodeId, dynamicEdges, variant, maintenanceRelatedIds]);
 
-  // Selected node details and connected attention edges for inspector
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
     return nodesRef.current.find((n) => n.id === selectedNodeId) ?? null;
-  }, [nodesRef.current, selectedNodeId]);
+  }, [selectedNodeId]);
 
   const selectedNodeConnectedEdges = useMemo(() => {
     if (!selectedNodeId) return [];
     return edgesRef.current.filter((e) => e.source === selectedNodeId || e.target === selectedNodeId);
-  }, [edgesRef.current, selectedNodeId]);
+  }, [selectedNodeId]);
 
   const nodes = nodesRef.current;
   const edges = edgesRef.current;
 
-  // Filtered nodes based on filterMode & search
+  // Filtered nodes
   const visibleNodeIds = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return new Set(
@@ -362,16 +420,36 @@ export default function CausalGraph({
   }, [nodes, filterMode, searchQuery]);
 
   return (
-    <div className={`flex flex-col rounded-2xl border ${isLight ? 'border-[#e2ddd1] bg-[#ffffff] shadow-md' : 'border-slate-800 bg-[#06090f] shadow-2xl'} overflow-hidden relative`}>
+    <div
+      className={`flex flex-col rounded-2xl border ${
+        isLight ? 'border-[#e2ddd1] bg-[#ffffff] shadow-md' : 'border-slate-800 bg-[#06090f] shadow-2xl'
+      } overflow-hidden relative`}
+    >
       {/* 1. Header Bar: Ground Maintenance Twin Bar vs Analytical Mode Bar */}
       {variant === 'maintenance' ? (
-        <div className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${isLight ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]' : 'border-amber-500/30 bg-gradient-to-r from-amber-950/25 via-slate-900 to-slate-950 text-slate-200'}`}>
+        <div
+          className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
+            isLight
+              ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]'
+              : 'border-amber-500/30 bg-gradient-to-r from-amber-950/25 via-slate-900 to-slate-950 text-slate-200'
+          }`}
+        >
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase font-mono tracking-wider ${isLight ? 'bg-[#00A896]/15 text-[#008f80] border border-[#00A896]/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
+            <span
+              className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase font-mono tracking-wider ${
+                isLight
+                  ? 'bg-[#00A896]/15 text-[#008f80] border border-[#00A896]/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+              }`}
+            >
               Ground Maintenance Twin
             </span>
             {selectedActionType && (
-              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isLight ? 'bg-white border border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-900 border border-slate-800 text-amber-300'}`}>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  isLight ? 'bg-white border border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-900 border border-slate-800 text-amber-300'
+                }`}
+              >
                 {selectedActionType}
               </span>
             )}
@@ -382,7 +460,11 @@ export default function CausalGraph({
               </span>
             )}
             {maintenanceTargetId && (
-              <span className={`text-xs font-mono flex items-center gap-1.5 px-2 py-0.5 rounded border ${isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-950/80 border-slate-800 text-slate-300'}`}>
+              <span
+                className={`text-xs font-mono flex items-center gap-1.5 px-2 py-0.5 rounded border ${
+                  isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-950/80 border-slate-800 text-slate-300'
+                }`}
+              >
                 <span className={isLight ? 'text-[#64748b]' : 'text-slate-500'}>Target Subassembly:</span>
                 <strong className={isLight ? 'text-[#0284c7] font-bold' : 'text-sky-300 font-bold'}>
                   {nodes.find((n) => n.id === maintenanceTargetId)?.label ?? maintenanceTargetId}
@@ -408,23 +490,31 @@ export default function CausalGraph({
             </span>
             <span className={`flex items-center gap-1.5 font-bold ${isLight ? 'text-[#b45309]' : 'text-amber-300'}`}>
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              Impacted / Related Corridor
+              Impacted Corridor
             </span>
             <span className={`flex items-center gap-1 ${isLight ? 'text-[#0c1117]' : 'text-slate-300'}`}>
-              <span className={`px-1.5 py-0.5 rounded font-bold ${isLight ? 'bg-[#f4efe6] text-[#0c1117]' : 'bg-slate-800 text-slate-100'}`}>XX%</span>
-              Individual Component Health
+              <span className={`px-1.5 py-0.5 rounded font-bold ${isLight ? 'bg-[#f4efe6] text-[#0c1117]' : 'bg-slate-800 text-slate-100'}`}>
+                XX%
+              </span>
+              Component Health
             </span>
             <button
               onClick={handleResetLayout}
-              className={`p-1.5 rounded-lg border ml-1 cursor-pointer transition-colors ${isLight ? 'text-[#475569] hover:text-[#0c1117] bg-white border-[#e2ddd1]' : 'text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800'}`}
-              title="Re-settle force simulation"
+              className={`p-1.5 rounded-lg border ml-1 cursor-pointer transition-colors ${
+                isLight ? 'text-[#475569] hover:text-[#0c1117] bg-white border-[#e2ddd1]' : 'text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800'
+              }`}
+              title="Re-settle Orbit physics simulation"
             >
               <HugeiconsIcon icon={RefreshIcon} size={12} />
             </button>
           </div>
         </div>
       ) : !hideToolbar ? (
-        <div className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${isLight ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]' : 'border-slate-800/80 bg-slate-900/90 text-slate-200'}`}>
+        <div
+          className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${
+            isLight ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]' : 'border-slate-800/80 bg-slate-900/90 text-slate-200'
+          }`}
+        >
           {/* Analytical Emphasis Tabs */}
           <div className={`flex items-center gap-1 p-1 rounded-xl border ${isLight ? 'bg-white border-[#e2ddd1]' : 'bg-slate-950 border-slate-800'}`}>
             {(['graph', 'diagnosis', 'propagation', 'impact'] as AnalysisMode[]).map((mode) => (
@@ -446,7 +536,17 @@ export default function CausalGraph({
             ))}
           </div>
 
-          {/* Filters */}
+          {/* Graph Status Badge */}
+          <div className="hidden md:flex items-center gap-2 text-[10px] font-mono font-bold text-slate-400">
+            <span className={`px-2 py-0.5 rounded-md border ${isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+              Live Graph: {nodes.length} Nodes · {edges.length} Causal Edges
+            </span>
+            <span className={`px-2 py-0.5 rounded-md border ${isLight ? 'bg-cyan-50 border-cyan-200 text-cyan-800' : 'bg-cyan-950/40 border-cyan-800/50 text-cyan-300'}`}>
+              Orbit Physics Enabled
+            </span>
+          </div>
+
+          {/* Filters & Actions */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`text-[10px] font-bold uppercase flex items-center gap-1 ${isLight ? 'text-[#475569]' : 'text-slate-500'}`}>
               <HugeiconsIcon icon={FilterIcon} size={12} /> Filter:
@@ -484,15 +584,21 @@ export default function CausalGraph({
             <div className="relative">
               <button
                 onClick={() => setOverlaysOpen(!overlaysOpen)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-700 transition-colors"
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                  isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117] hover:border-[#cbd5e1]' : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                }`}
               >
                 <HugeiconsIcon icon={SlidersHorizontalIcon} size={12} />
                 <span>Overlays ▼</span>
               </button>
 
               {overlaysOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 p-2 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl z-40 space-y-1 text-slate-300 text-[11px]">
-                  <label className="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded cursor-pointer">
+                <div
+                  className={`absolute right-0 top-full mt-1.5 w-48 p-2 rounded-xl border shadow-2xl z-40 space-y-1 text-[11px] ${
+                    isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-900 border-slate-800 text-slate-300'
+                  }`}
+                >
+                  <label className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isLight ? 'hover:bg-[#f4efe6]' : 'hover:bg-slate-800/60'}`}>
                     <input
                       type="checkbox"
                       checked={overlaySettings.showAttention}
@@ -501,7 +607,7 @@ export default function CausalGraph({
                     />
                     <span>Edge Attention (USP)</span>
                   </label>
-                  <label className="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded cursor-pointer">
+                  <label className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isLight ? 'hover:bg-[#f4efe6]' : 'hover:bg-slate-800/60'}`}>
                     <input
                       type="checkbox"
                       checked={overlaySettings.showEdgeWeights}
@@ -510,7 +616,7 @@ export default function CausalGraph({
                     />
                     <span>Base Physics Weights</span>
                   </label>
-                  <label className="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded cursor-pointer">
+                  <label className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isLight ? 'hover:bg-[#f4efe6]' : 'hover:bg-slate-800/60'}`}>
                     <input
                       type="checkbox"
                       checked={overlaySettings.showCriticality}
@@ -519,7 +625,7 @@ export default function CausalGraph({
                     />
                     <span>Node Criticality Badges</span>
                   </label>
-                  <label className="flex items-center gap-2 p-1.5 hover:bg-slate-800/60 rounded cursor-pointer">
+                  <label className={`flex items-center gap-2 p-1.5 rounded cursor-pointer ${isLight ? 'hover:bg-[#f4efe6]' : 'hover:bg-slate-800/60'}`}>
                     <input
                       type="checkbox"
                       checked={overlaySettings.showRelationshipTypes}
@@ -544,14 +650,20 @@ export default function CausalGraph({
                 placeholder="Search graph..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-7 pr-2.5 py-1 rounded-lg text-[10px] bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500/60 w-28 sm:w-36"
+                className={`pl-7 pr-2.5 py-1 rounded-lg text-[10px] border focus:outline-none w-28 sm:w-36 ${
+                  isLight
+                    ? 'bg-white border-[#e2ddd1] text-[#0c1117] focus:border-[#00A896]'
+                    : 'bg-slate-950 border-slate-800 text-slate-200 focus:border-amber-500/60'
+                }`}
               />
             </div>
 
             <button
               onClick={handleResetLayout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800"
-              title="Re-settle force simulation"
+              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                isLight ? 'text-[#475569] hover:text-[#0c1117] bg-white border-[#e2ddd1]' : 'text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800'
+              }`}
+              title="Reset Orbit graph layout & settle physics"
             >
               <HugeiconsIcon icon={RefreshIcon} size={12} />
             </button>
@@ -568,7 +680,7 @@ export default function CausalGraph({
         style={{
           display: 'block',
           touchAction: 'none',
-          background: isLight ? '#faf7f2' : 'radial-gradient(ellipse at center, #090f1a 0%, #05080e 100%)',
+          background: isLight ? '#faf7f2' : 'radial-gradient(ellipse at center, #0a1120 0%, #04070d 100%)',
           maxHeight: height ? (typeof height === 'number' ? `${height}px` : height) : undefined,
         }}
         onPointerMove={handlePointerMove}
@@ -585,7 +697,7 @@ export default function CausalGraph({
             markerHeight="5"
             orient="auto-start-reverse"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={isLight ? '#94a3b8' : '#334155'} />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={isLight ? '#94a3b8' : '#475569'} />
           </marker>
           <marker
             id="arrow-active"
@@ -622,80 +734,57 @@ export default function CausalGraph({
           </marker>
         </defs>
 
-        {/* 5 Parallel Causal Lane Guide Corridors (Horizontal Highways) */}
-        {PARALLEL_LANE_Y.map((ly, lIdx) => (
-          <g key={`corridor-${lIdx}`}>
-            {/* Subtle shaded horizontal corridor band */}
-            <rect
-              x={25}
-              y={ly - 70}
-              width={GRAPH_WIDTH - 50}
-              height={140}
-              fill={isLight ? (lIdx % 2 === 0 ? '#ffffff' : '#f5efe6') : (lIdx % 2 === 0 ? '#0b121e' : '#070c16')}
-              rx={14}
-              opacity={isLight ? 0.9 : 0.4}
-            />
-            <line
-              x1={35}
-              y1={ly}
-              x2={GRAPH_WIDTH - 35}
-              y2={ly}
-              stroke={isLight ? '#e2ddd1' : '#1a2538'}
-              strokeWidth={1}
-              strokeDasharray="4 8"
-              opacity={isLight ? 0.7 : 0.45}
-            />
-            {/* Lane Title Tag */}
-            <text
-              x={40}
-              y={ly - 50}
-              fill={isLight ? '#475569' : '#64748b'}
-              fontSize="9"
-              fontFamily="monospace"
-              fontWeight="800"
-              letterSpacing="1.2"
-              opacity={isLight ? 0.85 : 0.7}
-            >
-              LANE {lIdx + 1}: {LANE_NAMES[lIdx].toUpperCase()}
-            </text>
-          </g>
-        ))}
-
-        {/* 6 Causal Region Vertical Lanes */}
+        {/* 6 Causal Stage Columns (Organic forward causal progression without rigid swimlanes) */}
         {REGION_X.map((rx, idx) => {
           const cfg = Object.values(REGION_CONFIG)[idx];
           return (
             <g key={idx}>
-              {/* Lane dividing dashed line */}
+              {/* Subtle vertical stage guide */}
               <line
                 x1={rx}
-                y1={45}
+                y1={58}
                 x2={rx}
-                y2={GRAPH_HEIGHT - 25}
+                y2={GRAPH_HEIGHT - 45}
                 stroke={isLight ? '#e2ddd1' : '#1e293b'}
                 strokeWidth={1}
-                strokeDasharray="4 6"
+                strokeDasharray="4 8"
+                opacity={isLight ? 0.8 : 0.5}
               />
-              {/* Region Header Label */}
+              {/* Stage Pill Header at the top */}
+              <g transform={`translate(${rx}, 28)`}>
+                <rect
+                  x={-68}
+                  y={-14}
+                  width={136}
+                  height={24}
+                  rx={12}
+                  fill={isLight ? '#ffffff' : '#0c1527'}
+                  stroke={cfg.color}
+                  strokeWidth={1.2}
+                  strokeOpacity={0.8}
+                />
+                <circle cx={-52} cy={-2} r={3.5} fill={cfg.color} />
+                <text
+                  x={-42}
+                  y={2}
+                  fill={cfg.color}
+                  fontSize="10"
+                  fontWeight="900"
+                  letterSpacing="1"
+                  className="font-mono select-none pointer-events-none"
+                >
+                  {cfg.label}
+                </text>
+              </g>
+              {/* Descriptive Stage Caption */}
               <text
                 x={rx}
-                y={32}
+                y={48}
                 textAnchor="middle"
-                fill={cfg.color}
-                fontSize="11"
-                fontWeight="900"
-                letterSpacing="1.5"
-                opacity={0.9}
-              >
-                {cfg.label}
-              </text>
-              <text
-                x={rx}
-                y={46}
-                textAnchor="middle"
-                fill={isLight ? '#475569' : '#475569'}
+                fill={isLight ? '#64748b' : '#64748b'}
                 fontSize="8"
                 fontWeight="600"
+                className="select-none pointer-events-none"
               >
                 {cfg.desc}
               </text>
@@ -703,7 +792,7 @@ export default function CausalGraph({
           );
         })}
 
-        {/* Causal Edges Layer */}
+        {/* Causal Edges Layer (OrbitGraph elastic connections) */}
         <g className="edges-layer">
           {edges.map((e) => {
             const s = nodes.find((n) => n.id === e.source);
@@ -717,10 +806,10 @@ export default function CausalGraph({
             const isSelected = selectedEdgeId === e.id;
             const isActive = e.active;
 
-            // Strict Visual Hierarchy: When a node is selected, create a focus corridor (Requirement 8 & 9)
-            let opacity = 0.20;
-            let strokeColor = isLight ? '#cbd5e1' : '#243247';
-            let strokeWidth = Math.max(1.2, e.baseWeight * 1.8);
+            // Strict Visual Hierarchy: Active corridor is highlighted, but nominal edges are ALWAYS visible (never 0.03!)
+            let opacity = isLight ? 0.32 : 0.26;
+            let strokeColor = isLight ? '#94a3b8' : '#334155';
+            let strokeWidth = Math.max(1.3, e.baseWeight * 1.8);
             let marker = 'url(#arrow-nominal)';
 
             if (selectedNodeId != null) {
@@ -733,12 +822,12 @@ export default function CausalGraph({
                   : isDownstreamEdge
                   ? isLight ? '#d97706' : '#f59e0b'
                   : isLight ? '#00A896' : '#38bdf8';
-                strokeWidth = isDirectlyConnected ? 3.2 : 2.6;
+                strokeWidth = isDirectlyConnected ? 3.4 : 2.8;
                 marker = isUpstreamEdge ? 'url(#arrow-traced-up)' : 'url(#arrow-traced-down)';
               } else {
-                opacity = 0.03;
-                strokeColor = isLight ? '#e2ddd1' : '#1e293b';
-                strokeWidth = 1.0;
+                opacity = isLight ? 0.22 : 0.18; // Subtle, but clearly present!
+                strokeColor = isLight ? '#cbd5e1' : '#1e293b';
+                strokeWidth = 1.2;
               }
             } else if (isSelected) {
               opacity = 1.0;
@@ -746,9 +835,9 @@ export default function CausalGraph({
               strokeWidth = 3.2;
               marker = 'url(#arrow-traced-down)';
             } else if (isActive) {
-              opacity = 0.90;
+              opacity = 0.95;
               strokeColor = isLight ? '#e11d48' : '#f43f5e';
-              strokeWidth = Math.max(2.2, e.attention * 3.2);
+              strokeWidth = Math.max(2.2, e.attention * 3.4);
               marker = 'url(#arrow-active)';
             }
 
@@ -761,8 +850,8 @@ export default function CausalGraph({
             const sourceOffsetY = outEdges.length > 1 ? (outIdx - (outEdges.length - 1) / 2) * 7 : 0;
             const targetOffsetY = inEdges.length > 1 ? (inIdx - (inEdges.length - 1) / 2) * 7 : 0;
 
-            const r_s = s.radius ?? 20;
-            const r_t = t.radius ?? 20;
+            const r_s = s.radius ?? 21;
+            const r_t = t.radius ?? 21;
             const startX = s.x + r_s;
             const startY = s.y + sourceOffsetY;
             const endX = t.x - r_t - 3;
@@ -770,9 +859,9 @@ export default function CausalGraph({
 
             // Smooth horizontal cubic bezier curve
             const dx = endX - startX;
-            const cp1x = startX + dx * 0.42;
+            const cp1x = startX + dx * 0.45;
             const cp1y = startY;
-            const cp2x = startX + dx * 0.58;
+            const cp2x = startX + dx * 0.55;
             const cp2y = endY;
             const pathD = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
 
@@ -785,13 +874,14 @@ export default function CausalGraph({
                 }}
                 className="cursor-pointer"
               >
-                {/* Static Edge Path - Completely Still, No Continuous Moving Jitter (Requirement 2) */}
+                {/* Edge Path */}
                 <path
                   d={pathD}
                   fill="none"
                   stroke={strokeColor}
                   strokeWidth={strokeWidth}
                   strokeOpacity={opacity}
+                  strokeDasharray={isActive ? '6 4' : undefined}
                   markerEnd={marker}
                 />
 
@@ -799,12 +889,12 @@ export default function CausalGraph({
                 {(overlaySettings.showAttention || isSelected || (isActive && e.attention > 0.6) || (selectedNodeId && isCorridorEdge)) && (
                   <text
                     x={(startX + endX) / 2}
-                    y={(startY + endY) / 2 - 5}
+                    y={(startY + endY) / 2 - 6}
                     textAnchor="middle"
-                    fill={isActive ? '#fca5a5' : isCorridorEdge ? '#38bdf8' : '#fbbf24'}
+                    fill={isActive ? '#fca5a5' : isCorridorEdge ? '#38bdf8' : isLight ? '#d97706' : '#fbbf24'}
                     fontSize="9"
                     fontWeight="800"
-                    opacity={opacity > 0.1 ? 1.0 : 0.05}
+                    opacity={opacity > 0.15 ? 1.0 : 0.4}
                     className="font-mono pointer-events-none select-none drop-shadow-sm"
                   >
                     {overlaySettings.showAttention
@@ -821,7 +911,7 @@ export default function CausalGraph({
           })}
         </g>
 
-        {/* Causal Nodes Layer */}
+        {/* Causal Nodes Layer (Interactive Orbit nodes) */}
         <g className="nodes-layer">
           {nodes.map((n) => {
             if (n.x == null || n.y == null) return null;
@@ -835,18 +925,18 @@ export default function CausalGraph({
             const isSensorFault = n.criticality === 'sensor_fault';
             const isActive = n.activation > 0.45;
 
-            // Visual Hierarchy: When a node is selected, create a focus corridor (Requirement 8 & 9)
+            // UNASSOCIATED NODES NEVER DISAPPEAR (refer celestia_engine_graph.html)
             let nodeOpacity = 1.0;
             if (!isVisible) {
-              nodeOpacity = 0.08;
+              nodeOpacity = 0.52; // Muted if filtered out by search/filter, but still clearly visible!
             } else if (selectedNodeId != null) {
-              nodeOpacity = isCorridorNode ? 1.0 : 0.08;
+              nodeOpacity = isCorridorNode ? 1.0 : (isLight ? 0.78 : 0.72); // Crisp and legible, NOT 0.08!
             } else {
-              nodeOpacity = isCritical || isWarning || isActive ? 1.0 : 0.85;
+              nodeOpacity = isCritical || isWarning || isActive ? 1.0 : (isLight ? 0.92 : 0.88);
             }
 
-            // HEALTH COLOR IS ALWAYS PRESERVED (Requirement 7)
-            let coreColor = '#334155';
+            // Health color indicator
+            let coreColor = '#475569';
             if (isCritical) {
               coreColor = '#f43f5e';
             } else if (isWarning) {
@@ -855,17 +945,19 @@ export default function CausalGraph({
               coreColor = '#06b6d4';
             } else if (n.reconciliationStatus === 'reconciled') {
               coreColor = '#10b981';
+            } else if (n.health > 85) {
+              coreColor = '#059669';
             }
 
             let strokeColor = isLight
-              ? isCritical ? '#dc2626' : isWarning ? '#d97706' : isSensorFault ? '#0284c7' : '#cbd5e1'
-              : isCritical ? '#f43f5e' : isWarning ? '#fbbf24' : isSensorFault ? '#06b6d4' : '#334155';
+              ? isCritical ? '#dc2626' : isWarning ? '#d97706' : isSensorFault ? '#0284c7' : '#94a3b8'
+              : isCritical ? '#f43f5e' : isWarning ? '#fbbf24' : isSensorFault ? '#06b6d4' : '#475569';
             let strokeWidth = isCritical || isWarning ? 2.4 : 1.6;
             let fillColor = isLight
               ? isCritical ? '#fee2e2' : isWarning ? '#fef3c7' : '#ffffff'
-              : isCritical ? '#1f0d14' : isWarning ? '#1c1608' : '#090e18';
+              : isCritical ? '#1f0d14' : isWarning ? '#1c1608' : '#0c1322';
 
-            const r = n.radius ?? 20;
+            const r = n.radius ?? 21;
 
             return (
               <g
@@ -878,21 +970,21 @@ export default function CausalGraph({
                 onClick={() => onSelectNode(isSelected ? null : n.id)}
                 style={{ cursor: 'grab' }}
               >
-                {/* Dedicated Selection Outer Double-Ring when Selected (Requirement 4 & 7) */}
+                {/* Dedicated Selection Outer Double-Ring when Selected */}
                 {isSelected && (
                   <>
                     <circle
-                      r={r + 6}
+                      r={r + 7}
                       fill="none"
                       stroke={variant === 'maintenance' ? (isLight ? '#d97706' : '#f59e0b') : (isLight ? '#00A896' : '#38bdf8')}
                       strokeWidth={3}
                     />
                     <circle
-                      r={r + 10}
+                      r={r + 12}
                       fill="none"
                       stroke={variant === 'maintenance' ? (isLight ? '#d97706' : '#f59e0b') : (isLight ? '#00A896' : '#38bdf8')}
                       strokeWidth={1.5}
-                      strokeOpacity={0.4}
+                      strokeOpacity={0.45}
                     />
                   </>
                 )}
@@ -905,14 +997,14 @@ export default function CausalGraph({
                   strokeWidth={isHovered ? 2.8 : strokeWidth}
                 />
 
-                {/* Inner Core Indicator (Always Preserves Health Color: Red / Amber / Green) */}
+                {/* Inner Core Indicator (Preserves Health Color) */}
                 <circle
                   r={r * 0.72}
                   fill={coreColor}
-                  opacity={n.criticality === 'nominal' && !n.reconciliationStatus ? (isLight ? 0.85 : 0.7) : 0.95}
+                  opacity={n.criticality === 'nominal' && !n.reconciliationStatus ? (isLight ? 0.9 : 0.8) : 0.98}
                 />
 
-                {/* INDIVIDUAL COMPONENT HEALTH (Unconditionally visible on all nodes) */}
+                {/* Health Percentage Text (Always bold, high contrast, legible) */}
                 <text
                   y={4}
                   textAnchor="middle"
@@ -924,7 +1016,7 @@ export default function CausalGraph({
                   {n.health}%
                 </text>
 
-                {/* Node Label Text */}
+                {/* Node Label Text (High contrast, clearly visible on all nodes) */}
                 <text
                   y={r + 14}
                   textAnchor="middle"
@@ -932,17 +1024,29 @@ export default function CausalGraph({
                   fontWeight={isSelected || isCritical ? '800' : '700'}
                   fill={
                     isLight
-                      ? isSelected ? '#008f80' : isCritical ? '#be123c' : isWarning ? '#b45309' : '#0c1117'
-                      : isSelected ? '#38bdf8' : isCritical ? '#fca5a5' : isWarning ? '#fde68a' : '#94a3b8'
+                      ? isSelected ? '#008f80' : isCritical ? '#dc2626' : isWarning ? '#b45309' : '#0f172a'
+                      : isSelected ? '#38bdf8' : isCritical ? '#fca5a5' : isWarning ? '#fde68a' : '#e2e8f0'
                   }
-                  className="pointer-events-none select-none font-semibold"
+                  className="pointer-events-none select-none"
                 >
                   {n.label}
                 </text>
 
+                {/* SubType Tag under Node Label */}
+                <text
+                  y={r + 25}
+                  textAnchor="middle"
+                  fontSize="8"
+                  fontWeight="600"
+                  fill={isLight ? '#64748b' : '#64748b'}
+                  className="pointer-events-none select-none font-mono"
+                >
+                  {n.subType}
+                </text>
+
                 {/* Maintenance Target Indicator Pill (Above Node) */}
                 {variant === 'maintenance' && n.id === maintenanceTargetId && (
-                  <g transform={`translate(0, ${-(r + 10)})`}>
+                  <g transform={`translate(0, ${-(r + 12)})`}>
                     <rect
                       x={-28}
                       y={-8}
@@ -971,7 +1075,7 @@ export default function CausalGraph({
                   predictedHealthMap?.[n.id] &&
                   predictedHealthMap[n.id] > n.health &&
                   !n.reconciliationStatus && (
-                    <g transform={`translate(0, ${r + 27})`}>
+                    <g transform={`translate(0, ${r + 37})`}>
                       <rect
                         x={-44}
                         y={-7}
@@ -995,9 +1099,9 @@ export default function CausalGraph({
                     </g>
                   )}
 
-                {/* Visible Reconciliation Status Badge */}
+                {/* Reconciliation Status Badge */}
                 {n.reconciliationStatus && (
-                  <g transform={`translate(0, ${r + 26})`}>
+                  <g transform={`translate(0, ${r + 36})`}>
                     <rect
                       x={-34}
                       y={-7}
@@ -1079,16 +1183,53 @@ export default function CausalGraph({
             );
           })}
         </g>
+
+        {/* Legend Overlay at bottom (matching celestia_engine_graph.html) */}
+        <g transform={`translate(28, ${GRAPH_HEIGHT - 38})`}>
+          <rect
+            x={0}
+            y={0}
+            width={720}
+            height={28}
+            rx={8}
+            fill={isLight ? '#ffffff' : '#070d18'}
+            stroke={isLight ? '#e2ddd1' : '#1e293b'}
+            strokeWidth={1}
+            opacity={0.94}
+          />
+          <g transform="translate(14, 18)" fontSize="9.5" className="font-mono">
+            <circle cx={0} cy={-4} r={4} fill="#06b6d4" />
+            <text x={8} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Evidence</text>
+
+            <circle cx={80} cy={-4} r={4} fill="#f43f5e" />
+            <text x={88} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Root Causes</text>
+
+            <circle cx={178} cy={-4} r={4} fill="#38bdf8" />
+            <text x={186} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Subsystems</text>
+
+            <circle cx={274} cy={-4} r={4} fill="#34d399" />
+            <text x={282} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Sensors</text>
+
+            <circle cx={352} cy={-4} r={4} fill="#fbbf24" />
+            <text x={360} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>States</text>
+
+            <circle cx={420} cy={-4} r={4} fill="#e11d48" />
+            <text x={428} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Risk Roll-up</text>
+
+            <line x1={515} y1={-4} x2={545} y2={-4} stroke="#f43f5e" strokeWidth={2.4} strokeDasharray="4 2" />
+            <text x={552} y={-1} fill={isLight ? '#475569' : '#94a3b8'}>Active Flow</text>
+          </g>
+        </g>
       </svg>
 
-      {/* 3. Compact Selected Node Inspector Card (Requirements 6 & 10) */}
+      {/* 3. Compact Selected Node Inspector Card */}
       {selectedNode &&
         (variant === 'maintenance' ? (
-          <div className={`absolute top-14 right-4 z-30 max-w-xs w-80 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2.5 pointer-events-auto ${
-            isLight
-              ? 'border-[#00A896] bg-white/98 text-[#0c1117]'
-              : 'border-amber-500/50 bg-[#080d16]/95 text-slate-200'
-          }`}>
+          <div
+            className={`absolute top-14 right-4 z-30 max-w-xs w-80 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2.5 pointer-events-auto ${
+              isLight ? 'border-[#00A896] bg-white/98 text-[#0c1117]' : 'border-amber-500/50 bg-[#080d16]/95 text-slate-200'
+            }`}
+          >
             <div className={`flex items-start justify-between gap-1.5 border-b pb-2 ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
@@ -1114,7 +1255,9 @@ export default function CausalGraph({
                   ev.stopPropagation();
                   onSelectNode(null);
                 }}
-                className={`p-0.5 rounded cursor-pointer ${isLight ? 'text-[#475569] hover:text-[#0c1117] hover:bg-[#f4efe6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'}`}
+                className={`p-0.5 rounded cursor-pointer ${
+                  isLight ? 'text-[#475569] hover:text-[#0c1117] hover:bg-[#f4efe6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                }`}
                 title="Close"
               >
                 ✕
@@ -1225,11 +1368,11 @@ export default function CausalGraph({
             </div>
           </div>
         ) : (
-          <div className={`absolute top-14 right-4 z-30 max-w-xs w-72 rounded-xl border p-3 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2 pointer-events-auto ${
-            isLight
-              ? 'border-[#00A896] bg-white/98 text-[#0c1117]'
-              : 'border-sky-500/50 bg-[#080d16]/95 text-slate-200'
-          }`}>
+          <div
+            className={`absolute top-14 right-4 z-30 max-w-xs w-72 rounded-xl border p-3 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2 pointer-events-auto ${
+              isLight ? 'border-[#00A896] bg-white/98 text-[#0c1117]' : 'border-sky-500/50 bg-[#080d16]/95 text-slate-200'
+            }`}
+          >
             <div className={`flex items-start justify-between gap-1.5 border-b pb-1.5 ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
               <div className="flex items-center gap-1.5 truncate">
                 <span
