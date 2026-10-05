@@ -13,15 +13,24 @@ import type {
 
 // Single place the backend's base URL is read from - never hardcode a host
 // anywhere else in the app.
+const defaultBaseUrl =
+  typeof window !== 'undefined' && window.location.port !== '5173'
+    ? window.location.origin
+    : 'http://localhost:8000';
+
 export const API_BASE_URL: string =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
     ? String(import.meta.env.VITE_API_BASE_URL)
-    : 'http://localhost:8000';
+    : defaultBaseUrl;
 
 export const WS_URL: string =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL)
     ? String(import.meta.env.VITE_WS_URL)
-    : API_BASE_URL.replace(/^http/, 'ws') + '/ws/telemetry';
+    : (API_BASE_URL.startsWith('http')
+        ? API_BASE_URL.replace(/^http/, 'ws') + '/ws/telemetry'
+        : (typeof window !== 'undefined'
+            ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/telemetry`
+            : 'ws://localhost:8000/ws/telemetry'));
 
 export interface IngestFrame {
   t: number;

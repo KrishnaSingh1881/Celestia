@@ -366,3 +366,28 @@ async def simulation_stop() -> FlightSimulationStatus:
 @app.get("/api/simulation/status", response_model=FlightSimulationStatus)
 async def simulation_status() -> FlightSimulationStatus:
     return FlightSimulationStatus(**_flight_sim.status())
+
+
+# --- Production frontend static file serving (when frontend/dist exists) ---
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+
+_DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if _DIST_DIR.exists() and (_DIST_DIR / "index.html").exists():
+    if (_DIST_DIR / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=str(_DIST_DIR / "assets")), name="frontend_assets")
+
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(str(_DIST_DIR / "index.html"))
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("ws"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = _DIST_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_DIST_DIR / "index.html"))
+
