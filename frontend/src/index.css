@@ -430,12 +430,25 @@ html.light nav.bg-\[\#090d14\] {
   background-color: var(--bg-sidebar) !important;
 }
 
-/* Card and Panel surfaces */
-html.light .bg-slate-900 {
+/* Card and Panel surfaces (including arbitrary dark hexes from maintenance & graph pages) */
+html.light .bg-slate-900,
+html.light .bg-\[\#06090f\],
+html.light .bg-\[\#070b13\],
+html.light .bg-\[\#070b12\],
+html.light .bg-\[\#080d16\],
+html.light .bg-\[\#080d16\]\/95,
+html.light .bg-\[\#080d16\]\/90,
+html.light .bg-\[\#090e18\],
+html.light .bg-\[\#05070c\],
+html.light .bg-\[\#080c14\],
+html.light .bg-\[\#0b121e\],
+html.light .bg-\[\#070c16\],
+html.light .bg-\[\#0a0e17\] {
   background-color: var(--bg-card) !important;
 }
 
 html.light .bg-slate-950,
+html.light .bg-slate-950\/60,
 html.light .bg-slate-950\/70,
 html.light .bg-slate-950\/80,
 html.light .bg-slate-950\/85,
@@ -444,23 +457,42 @@ html.light .bg-slate-950\/95 {
   background-color: var(--bg-card-subtle) !important;
 }
 
+html.light .bg-slate-900\/30,
 html.light .bg-slate-900\/40,
 html.light .bg-slate-900\/50,
 html.light .bg-slate-900\/60,
-html.light .bg-slate-900\/80 {
-  background-color: rgba(244, 239, 230, 0.85) !important;
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/90 {
+  background-color: var(--bg-card-subtle) !important;
 }
 
-/* Borders */
+/* Borders & Dividers */
 html.light .border-slate-800,
+html.light .border-slate-800\/60,
 html.light .border-slate-800\/80,
-html.light .border-slate-800\/60 {
+html.light .border-slate-800\/90,
+html.light .border-slate-900 {
   border-color: var(--border-card) !important;
 }
 
 html.light .border-slate-700,
 html.light .border-slate-700\/80 {
   border-color: var(--border-card-subtle) !important;
+}
+
+html.light .divide-slate-800,
+html.light .divide-slate-800\/60,
+html.light .divide-slate-900 {
+  border-color: var(--border-card-subtle) !important;
+}
+
+/* Hover states */
+html.light .hover\:bg-slate-900:hover,
+html.light .hover\:bg-slate-900\/50:hover,
+html.light .hover\:bg-slate-900\/80:hover,
+html.light .hover\:bg-slate-800:hover {
+  background-color: #f3efe6 !important;
 }
 
 /* Text Hierarchy - Ink Black */

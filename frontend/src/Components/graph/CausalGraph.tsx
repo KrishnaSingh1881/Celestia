@@ -17,6 +17,7 @@ import {
   LANE_NAMES,
   REGION_X_POSITIONS,
 } from '../../lib/causalLaneLayout';
+import { useThemeStore } from '../../store/useThemeStore';
 import type {
   AnalysisMode,
   CausalEdgeData,
@@ -79,6 +80,9 @@ export default function CausalGraph({
   selectedActionTitle,
   selectedActionType,
 }: CausalGraphProps) {
+  const theme = useThemeStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   // Simulation physics refs
   const nodesRef = useRef<CausalNodeData[]>([]);
   const edgesRef = useRef<CausalEdgeData[]>([]);
@@ -358,33 +362,33 @@ export default function CausalGraph({
   }, [nodes, filterMode, searchQuery]);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-800 bg-[#06090f] shadow-2xl overflow-hidden relative">
+    <div className={`flex flex-col rounded-2xl border ${isLight ? 'border-[#e2ddd1] bg-[#ffffff] shadow-md' : 'border-slate-800 bg-[#06090f] shadow-2xl'} overflow-hidden relative`}>
       {/* 1. Header Bar: Ground Maintenance Twin Bar vs Analytical Mode Bar */}
       {variant === 'maintenance' ? (
-        <div className="p-3 border-b border-amber-500/30 bg-gradient-to-r from-amber-950/25 via-slate-900 to-slate-950 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${isLight ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]' : 'border-amber-500/30 bg-gradient-to-r from-amber-950/25 via-slate-900 to-slate-950 text-slate-200'}`}>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase font-mono tracking-wider">
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase font-mono tracking-wider ${isLight ? 'bg-[#00A896]/15 text-[#008f80] border border-[#00A896]/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
               Ground Maintenance Twin
             </span>
             {selectedActionType && (
-              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-amber-300 font-mono font-bold">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${isLight ? 'bg-white border border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-900 border border-slate-800 text-amber-300'}`}>
                 {selectedActionType}
               </span>
             )}
             {selectedActionTitle && (
-              <span className="text-xs text-slate-200 font-bold flex items-center gap-1.5">
-                <span className="text-slate-400 font-normal">Procedure:</span>
-                <span className="text-amber-400">{selectedActionTitle}</span>
+              <span className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? 'text-[#0c1117]' : 'text-slate-200'}`}>
+                <span className={isLight ? 'text-[#475569]' : 'text-slate-400 font-normal'}>Procedure:</span>
+                <span className={isLight ? 'text-[#008f80]' : 'text-amber-400'}>{selectedActionTitle}</span>
               </span>
             )}
             {maintenanceTargetId && (
-              <span className="text-xs text-slate-300 font-mono flex items-center gap-1.5 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800">
-                <span className="text-slate-500">Target Subassembly:</span>
-                <strong className="text-sky-300 font-bold">
+              <span className={`text-xs font-mono flex items-center gap-1.5 px-2 py-0.5 rounded border ${isLight ? 'bg-white border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-950/80 border-slate-800 text-slate-300'}`}>
+                <span className={isLight ? 'text-[#64748b]' : 'text-slate-500'}>Target Subassembly:</span>
+                <strong className={isLight ? 'text-[#0284c7] font-bold' : 'text-sky-300 font-bold'}>
                   {nodes.find((n) => n.id === maintenanceTargetId)?.label ?? maintenanceTargetId}
                 </strong>
                 {nodes.find((n) => n.id === maintenanceTargetId) && (
-                  <span className="ml-1 text-[11px] font-bold text-amber-300">
+                  <span className={`ml-1 text-[11px] font-bold ${isLight ? 'text-[#008f80]' : 'text-amber-300'}`}>
                     ({nodes.find((n) => n.id === maintenanceTargetId)!.health}%
                     {predictedHealthMap?.[maintenanceTargetId] &&
                     nodes.find((n) => n.id === maintenanceTargetId)!.health < predictedHealthMap[maintenanceTargetId]
@@ -397,22 +401,22 @@ export default function CausalGraph({
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-[10px] font-mono text-slate-400 flex-wrap">
-            <span className="flex items-center gap-1.5 text-sky-300 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full border-2 border-sky-400 bg-sky-950" />
+          <div className={`flex items-center gap-3 text-[10px] font-mono flex-wrap ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
+            <span className={`flex items-center gap-1.5 font-bold ${isLight ? 'text-[#0284c7]' : 'text-sky-300'}`}>
+              <span className="w-2.5 h-2.5 rounded-full border-2 border-sky-400 bg-sky-500" />
               Target Subassembly
             </span>
-            <span className="flex items-center gap-1.5 text-amber-300 font-bold">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <span className={`flex items-center gap-1.5 font-bold ${isLight ? 'text-[#b45309]' : 'text-amber-300'}`}>
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               Impacted / Related Corridor
             </span>
-            <span className="flex items-center gap-1 text-slate-300">
-              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-100 font-bold">XX%</span>
+            <span className={`flex items-center gap-1 ${isLight ? 'text-[#0c1117]' : 'text-slate-300'}`}>
+              <span className={`px-1.5 py-0.5 rounded font-bold ${isLight ? 'bg-[#f4efe6] text-[#0c1117]' : 'bg-slate-800 text-slate-100'}`}>XX%</span>
               Individual Component Health
             </span>
             <button
               onClick={handleResetLayout}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800 ml-1"
+              className={`p-1.5 rounded-lg border ml-1 cursor-pointer transition-colors ${isLight ? 'text-[#475569] hover:text-[#0c1117] bg-white border-[#e2ddd1]' : 'text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800'}`}
               title="Re-settle force simulation"
             >
               <HugeiconsIcon icon={RefreshIcon} size={12} />
@@ -420,16 +424,20 @@ export default function CausalGraph({
           </div>
         </div>
       ) : !hideToolbar ? (
-        <div className="p-3 border-b border-slate-800/80 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className={`p-3 border-b flex flex-wrap items-center justify-between gap-3 text-xs ${isLight ? 'border-[#e2ddd1] bg-[#f4efe6] text-[#0c1117]' : 'border-slate-800/80 bg-slate-900/90 text-slate-200'}`}>
           {/* Analytical Emphasis Tabs */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className={`flex items-center gap-1 p-1 rounded-xl border ${isLight ? 'bg-white border-[#e2ddd1]' : 'bg-slate-950 border-slate-800'}`}>
             {(['graph', 'diagnosis', 'propagation', 'impact'] as AnalysisMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => onSetAnalysisMode(mode)}
-                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                   analysisMode === mode
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? isLight
+                      ? 'bg-[#00A896] text-white shadow-xs'
+                      : 'bg-amber-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'text-[#475569] hover:text-[#0c1117] hover:bg-[#f4efe6]'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                 }`}
               >
@@ -440,16 +448,20 @@ export default function CausalGraph({
 
           {/* Filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+            <span className={`text-[10px] font-bold uppercase flex items-center gap-1 ${isLight ? 'text-[#475569]' : 'text-slate-500'}`}>
               <HugeiconsIcon icon={FilterIcon} size={12} /> Filter:
             </span>
             {(['all', 'active_path', 'anomalies', 'critical'] as FilterMode[]).map((f) => (
               <button
                 key={f}
                 onClick={() => onSetFilterMode(f)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
                   filterMode === f
-                    ? 'bg-slate-800 text-amber-400 border border-amber-500/40'
+                    ? isLight
+                      ? 'bg-[#00A896]/15 text-[#008f80] border border-[#00A896]/40'
+                      : 'bg-slate-800 text-amber-400 border border-amber-500/40'
+                    : isLight
+                    ? 'bg-white text-[#475569] hover:text-[#0c1117] border border-[#e2ddd1]'
                     : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800/80'
                 }`}
               >
@@ -556,7 +568,7 @@ export default function CausalGraph({
         style={{
           display: 'block',
           touchAction: 'none',
-          background: 'radial-gradient(ellipse at center, #090f1a 0%, #05080e 100%)',
+          background: isLight ? '#faf7f2' : 'radial-gradient(ellipse at center, #090f1a 0%, #05080e 100%)',
           maxHeight: height ? (typeof height === 'number' ? `${height}px` : height) : undefined,
         }}
         onPointerMove={handlePointerMove}
@@ -573,7 +585,7 @@ export default function CausalGraph({
             markerHeight="5"
             orient="auto-start-reverse"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#334155" />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={isLight ? '#94a3b8' : '#334155'} />
           </marker>
           <marker
             id="arrow-active"
@@ -595,7 +607,7 @@ export default function CausalGraph({
             markerHeight="7"
             orient="auto-start-reverse"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#06b6d4" />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={isLight ? '#0284c7' : '#06b6d4'} />
           </marker>
           <marker
             id="arrow-traced-down"
@@ -606,7 +618,7 @@ export default function CausalGraph({
             markerHeight="7"
             orient="auto-start-reverse"
           >
-            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f59e0b" />
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill={isLight ? '#d97706' : '#f59e0b'} />
           </marker>
         </defs>
 
@@ -619,30 +631,30 @@ export default function CausalGraph({
               y={ly - 70}
               width={GRAPH_WIDTH - 50}
               height={140}
-              fill={lIdx % 2 === 0 ? '#0b121e' : '#070c16'}
+              fill={isLight ? (lIdx % 2 === 0 ? '#ffffff' : '#f5efe6') : (lIdx % 2 === 0 ? '#0b121e' : '#070c16')}
               rx={14}
-              opacity={0.4}
+              opacity={isLight ? 0.9 : 0.4}
             />
             <line
               x1={35}
               y1={ly}
               x2={GRAPH_WIDTH - 35}
               y2={ly}
-              stroke="#1a2538"
+              stroke={isLight ? '#e2ddd1' : '#1a2538'}
               strokeWidth={1}
               strokeDasharray="4 8"
-              opacity={0.45}
+              opacity={isLight ? 0.7 : 0.45}
             />
             {/* Lane Title Tag */}
             <text
               x={40}
               y={ly - 50}
-              fill="#64748b"
+              fill={isLight ? '#475569' : '#64748b'}
               fontSize="9"
               fontFamily="monospace"
               fontWeight="800"
               letterSpacing="1.2"
-              opacity={0.7}
+              opacity={isLight ? 0.85 : 0.7}
             >
               LANE {lIdx + 1}: {LANE_NAMES[lIdx].toUpperCase()}
             </text>
@@ -660,7 +672,7 @@ export default function CausalGraph({
                 y1={45}
                 x2={rx}
                 y2={GRAPH_HEIGHT - 25}
-                stroke="#1e293b"
+                stroke={isLight ? '#e2ddd1' : '#1e293b'}
                 strokeWidth={1}
                 strokeDasharray="4 6"
               />
@@ -673,7 +685,7 @@ export default function CausalGraph({
                 fontSize="11"
                 fontWeight="900"
                 letterSpacing="1.5"
-                opacity={0.8}
+                opacity={0.9}
               >
                 {cfg.label}
               </text>
@@ -681,7 +693,7 @@ export default function CausalGraph({
                 x={rx}
                 y={46}
                 textAnchor="middle"
-                fill="#475569"
+                fill={isLight ? '#475569' : '#475569'}
                 fontSize="8"
                 fontWeight="600"
               >
@@ -707,29 +719,35 @@ export default function CausalGraph({
 
             // Strict Visual Hierarchy: When a node is selected, create a focus corridor (Requirement 8 & 9)
             let opacity = 0.20;
-            let strokeColor = '#243247';
+            let strokeColor = isLight ? '#cbd5e1' : '#243247';
             let strokeWidth = Math.max(1.2, e.baseWeight * 1.8);
             let marker = 'url(#arrow-nominal)';
 
             if (selectedNodeId != null) {
               if (isCorridorEdge) {
                 opacity = 1.0;
-                strokeColor = isDirectlyConnected ? '#38bdf8' : isUpstreamEdge ? '#06b6d4' : isDownstreamEdge ? '#f59e0b' : '#38bdf8';
+                strokeColor = isDirectlyConnected
+                  ? isLight ? '#00A896' : '#38bdf8'
+                  : isUpstreamEdge
+                  ? isLight ? '#0284c7' : '#06b6d4'
+                  : isDownstreamEdge
+                  ? isLight ? '#d97706' : '#f59e0b'
+                  : isLight ? '#00A896' : '#38bdf8';
                 strokeWidth = isDirectlyConnected ? 3.2 : 2.6;
                 marker = isUpstreamEdge ? 'url(#arrow-traced-up)' : 'url(#arrow-traced-down)';
               } else {
                 opacity = 0.03;
-                strokeColor = '#1e293b';
+                strokeColor = isLight ? '#e2ddd1' : '#1e293b';
                 strokeWidth = 1.0;
               }
             } else if (isSelected) {
               opacity = 1.0;
-              strokeColor = '#f59e0b';
+              strokeColor = isLight ? '#d97706' : '#f59e0b';
               strokeWidth = 3.2;
               marker = 'url(#arrow-traced-down)';
             } else if (isActive) {
               opacity = 0.90;
-              strokeColor = '#f43f5e';
+              strokeColor = isLight ? '#e11d48' : '#f43f5e';
               strokeWidth = Math.max(2.2, e.attention * 3.2);
               marker = 'url(#arrow-active)';
             }
@@ -839,9 +857,13 @@ export default function CausalGraph({
               coreColor = '#10b981';
             }
 
-            let strokeColor = isCritical ? '#f43f5e' : isWarning ? '#fbbf24' : isSensorFault ? '#06b6d4' : '#334155';
-            let strokeWidth = isCritical || isWarning ? 2.2 : 1.6;
-            let fillColor = isCritical ? '#1f0d14' : isWarning ? '#1c1608' : '#090e18';
+            let strokeColor = isLight
+              ? isCritical ? '#dc2626' : isWarning ? '#d97706' : isSensorFault ? '#0284c7' : '#cbd5e1'
+              : isCritical ? '#f43f5e' : isWarning ? '#fbbf24' : isSensorFault ? '#06b6d4' : '#334155';
+            let strokeWidth = isCritical || isWarning ? 2.4 : 1.6;
+            let fillColor = isLight
+              ? isCritical ? '#fee2e2' : isWarning ? '#fef3c7' : '#ffffff'
+              : isCritical ? '#1f0d14' : isWarning ? '#1c1608' : '#090e18';
 
             const r = n.radius ?? 20;
 
@@ -862,13 +884,13 @@ export default function CausalGraph({
                     <circle
                       r={r + 6}
                       fill="none"
-                      stroke={variant === 'maintenance' ? '#f59e0b' : '#38bdf8'}
+                      stroke={variant === 'maintenance' ? (isLight ? '#d97706' : '#f59e0b') : (isLight ? '#00A896' : '#38bdf8')}
                       strokeWidth={3}
                     />
                     <circle
                       r={r + 10}
                       fill="none"
-                      stroke={variant === 'maintenance' ? '#f59e0b' : '#38bdf8'}
+                      stroke={variant === 'maintenance' ? (isLight ? '#d97706' : '#f59e0b') : (isLight ? '#00A896' : '#38bdf8')}
                       strokeWidth={1.5}
                       strokeOpacity={0.4}
                     />
@@ -879,7 +901,7 @@ export default function CausalGraph({
                 <circle
                   r={r}
                   fill={fillColor}
-                  stroke={isHovered ? '#ffffff' : strokeColor}
+                  stroke={isHovered ? (isLight ? '#0c1117' : '#ffffff') : strokeColor}
                   strokeWidth={isHovered ? 2.8 : strokeWidth}
                 />
 
@@ -887,7 +909,7 @@ export default function CausalGraph({
                 <circle
                   r={r * 0.72}
                   fill={coreColor}
-                  opacity={n.criticality === 'nominal' && !n.reconciliationStatus ? 0.7 : 0.95}
+                  opacity={n.criticality === 'nominal' && !n.reconciliationStatus ? (isLight ? 0.85 : 0.7) : 0.95}
                 />
 
                 {/* INDIVIDUAL COMPONENT HEALTH (Unconditionally visible on all nodes) */}
@@ -907,9 +929,13 @@ export default function CausalGraph({
                   y={r + 14}
                   textAnchor="middle"
                   fontSize="10"
-                  fontWeight={isSelected || isCritical ? '800' : '600'}
-                  fill={isSelected ? '#38bdf8' : isCritical ? '#fca5a5' : isWarning ? '#fde68a' : '#94a3b8'}
-                  className="pointer-events-none select-none drop-shadow-md"
+                  fontWeight={isSelected || isCritical ? '800' : '700'}
+                  fill={
+                    isLight
+                      ? isSelected ? '#008f80' : isCritical ? '#be123c' : isWarning ? '#b45309' : '#0c1117'
+                      : isSelected ? '#38bdf8' : isCritical ? '#fca5a5' : isWarning ? '#fde68a' : '#94a3b8'
+                  }
+                  className="pointer-events-none select-none font-semibold"
                 >
                   {n.label}
                 </text>
@@ -952,8 +978,8 @@ export default function CausalGraph({
                         width={88}
                         height={15}
                         rx={4}
-                        fill="#064e3b"
-                        stroke="#10b981"
+                        fill={isLight ? '#dcfce7' : '#064e3b'}
+                        stroke={isLight ? '#16a34a' : '#10b981'}
                         strokeWidth={1}
                       />
                       <text
@@ -961,7 +987,7 @@ export default function CausalGraph({
                         textAnchor="middle"
                         fontSize="9"
                         fontWeight="900"
-                        fill="#6ee7b7"
+                        fill={isLight ? '#15803d' : '#6ee7b7'}
                         className="font-mono"
                       >
                         {n.health}% → {predictedHealthMap[n.id]}% ↑
@@ -979,7 +1005,15 @@ export default function CausalGraph({
                       height={13}
                       rx={3}
                       fill={
-                        n.reconciliationStatus === 'reconciled'
+                        isLight
+                          ? n.reconciliationStatus === 'reconciled'
+                            ? '#dcfce7'
+                            : n.reconciliationStatus === 'stabilized'
+                            ? '#fef3c7'
+                            : n.reconciliationStatus === 'reduced'
+                            ? '#e0f2fe'
+                            : '#fee2e2'
+                          : n.reconciliationStatus === 'reconciled'
                           ? '#064e3b'
                           : n.reconciliationStatus === 'stabilized'
                           ? '#78350f'
@@ -988,7 +1022,15 @@ export default function CausalGraph({
                           : '#881337'
                       }
                       stroke={
-                        n.reconciliationStatus === 'reconciled'
+                        isLight
+                          ? n.reconciliationStatus === 'reconciled'
+                            ? '#16a34a'
+                            : n.reconciliationStatus === 'stabilized'
+                            ? '#d97706'
+                            : n.reconciliationStatus === 'reduced'
+                            ? '#0284c7'
+                            : '#dc2626'
+                          : n.reconciliationStatus === 'reconciled'
                           ? '#10b981'
                           : n.reconciliationStatus === 'stabilized'
                           ? '#f59e0b'
@@ -996,7 +1038,7 @@ export default function CausalGraph({
                           ? '#06b6d4'
                           : '#f43f5e'
                       }
-                      strokeWidth={0.8}
+                      strokeWidth={1}
                     />
                     <text
                       y={2.5}
@@ -1005,7 +1047,15 @@ export default function CausalGraph({
                       fontWeight="900"
                       letterSpacing="0.4"
                       fill={
-                        n.reconciliationStatus === 'reconciled'
+                        isLight
+                          ? n.reconciliationStatus === 'reconciled'
+                            ? '#15803d'
+                            : n.reconciliationStatus === 'stabilized'
+                            ? '#92400e'
+                            : n.reconciliationStatus === 'reduced'
+                            ? '#0369a1'
+                            : '#b91c1c'
+                          : n.reconciliationStatus === 'reconciled'
                           ? '#6ee7b7'
                           : n.reconciliationStatus === 'stabilized'
                           ? '#fde68a'
@@ -1034,12 +1084,16 @@ export default function CausalGraph({
       {/* 3. Compact Selected Node Inspector Card (Requirements 6 & 10) */}
       {selectedNode &&
         (variant === 'maintenance' ? (
-          <div className="absolute top-14 right-4 z-30 max-w-xs w-80 rounded-xl border border-amber-500/50 bg-[#080d16]/95 p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2.5 pointer-events-auto">
-            <div className="flex items-start justify-between gap-1.5 border-b border-slate-800 pb-2">
+          <div className={`absolute top-14 right-4 z-30 max-w-xs w-80 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2.5 pointer-events-auto ${
+            isLight
+              ? 'border-[#00A896] bg-white/98 text-[#0c1117]'
+              : 'border-amber-500/50 bg-[#080d16]/95 text-slate-200'
+          }`}>
+            <div className={`flex items-start justify-between gap-1.5 border-b pb-2 ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
               <div className="truncate">
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    className={`w-2 h-2 rounded-full shrink-0 ${
                       selectedNode.health < 50
                         ? 'bg-rose-400'
                         : selectedNode.health < 80
@@ -1047,11 +1101,11 @@ export default function CausalGraph({
                         : 'bg-emerald-400'
                     }`}
                   />
-                  <span className="font-black text-slate-100 text-xs truncate block">
+                  <span className={`font-black text-xs truncate block ${isLight ? 'text-[#0c1117]' : 'text-slate-100'}`}>
                     {selectedNode.label}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 mt-0.5 block truncate">
+                <span className={`text-[10px] mt-0.5 block truncate ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
                   {selectedNode.subType} · {selectedNode.region.replace('_', ' ').toUpperCase()}
                 </span>
               </div>
@@ -1060,7 +1114,7 @@ export default function CausalGraph({
                   ev.stopPropagation();
                   onSelectNode(null);
                 }}
-                className="text-slate-400 hover:text-slate-100 p-0.5 rounded hover:bg-slate-800"
+                className={`p-0.5 rounded cursor-pointer ${isLight ? 'text-[#475569] hover:text-[#0c1117] hover:bg-[#f4efe6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'}`}
                 title="Close"
               >
                 ✕
@@ -1068,24 +1122,24 @@ export default function CausalGraph({
             </div>
 
             {/* Individual Component Health & Predicted Recovery */}
-            <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-2">
+            <div className={`p-2.5 rounded-lg border space-y-2 ${isLight ? 'bg-[#faf7f2] border-[#e2ddd1]' : 'bg-slate-950/80 border-slate-800'}`}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase text-slate-400 font-bold">Individual Health</span>
+                <span className={`text-[10px] uppercase font-bold ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>Individual Health</span>
                 <div className="flex items-center gap-1.5">
                   <span
                     className={`text-base font-black ${
                       selectedNode.health < 50
-                        ? 'text-rose-400'
+                        ? isLight ? 'text-rose-600' : 'text-rose-400'
                         : selectedNode.health < 80
-                        ? 'text-amber-400'
-                        : 'text-emerald-400'
+                        ? isLight ? 'text-amber-600' : 'text-amber-400'
+                        : isLight ? 'text-emerald-600' : 'text-emerald-400'
                     }`}
                   >
                     {selectedNode.health}%
                   </span>
                   {predictedHealthMap?.[selectedNode.id] &&
                     selectedNode.health < predictedHealthMap[selectedNode.id] && (
-                      <span className="text-emerald-400 font-black text-xs">
+                      <span className={`font-black text-xs ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
                         → {predictedHealthMap[selectedNode.id]}% ↑
                       </span>
                     )}
@@ -1093,7 +1147,7 @@ export default function CausalGraph({
               </div>
 
               {/* Health Bar with Predicted Gain */}
-              <div className="w-full bg-slate-900 h-2.5 rounded-full overflow-hidden border border-slate-800 relative">
+              <div className={`w-full h-2.5 rounded-full overflow-hidden border relative ${isLight ? 'bg-[#e2ddd1] border-[#d4cdbf]' : 'bg-slate-900 border-slate-800'}`}>
                 <div
                   className={`h-full ${
                     selectedNode.health < 50
@@ -1116,16 +1170,16 @@ export default function CausalGraph({
                   )}
               </div>
 
-              <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+              <div className={`flex justify-between text-[9px] font-mono ${isLight ? 'text-[#64748b]' : 'text-slate-500'}`}>
                 <span>
                   Status:{' '}
                   <strong
                     className={
                       selectedNode.health < 50
-                        ? 'text-rose-400'
+                        ? isLight ? 'text-rose-600 font-bold' : 'text-rose-400'
                         : selectedNode.health < 80
-                        ? 'text-amber-400'
-                        : 'text-emerald-400'
+                        ? isLight ? 'text-amber-600 font-bold' : 'text-amber-400'
+                        : isLight ? 'text-emerald-600 font-bold' : 'text-emerald-400'
                     }
                   >
                     {selectedNode.reconciliationStatus
@@ -1139,7 +1193,7 @@ export default function CausalGraph({
                 </span>
                 {predictedHealthMap?.[selectedNode.id] &&
                   selectedNode.health < predictedHealthMap[selectedNode.id] && (
-                    <span className="text-emerald-400 font-bold">
+                    <span className={`font-bold ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
                       +{predictedHealthMap[selectedNode.id] - selectedNode.health}% Post-Repair
                     </span>
                   )}
@@ -1148,31 +1202,35 @@ export default function CausalGraph({
 
             {/* Active Procedure Context */}
             {selectedActionTitle && (
-              <div className="text-[10px] space-y-1 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                <span className="text-amber-300 font-bold block">Assigned Procedure:</span>
-                <span className="text-slate-200 block truncate">{selectedActionTitle}</span>
+              <div className={`text-[10px] space-y-1 p-2 rounded-lg border ${isLight ? 'bg-amber-50/80 border-amber-300 text-amber-950' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                <span className={`font-bold block ${isLight ? 'text-amber-800' : 'text-amber-300'}`}>Assigned Procedure:</span>
+                <span className={`block truncate ${isLight ? 'text-[#0c1117]' : 'text-slate-200'}`}>{selectedActionTitle}</span>
               </div>
             )}
 
             {/* Upstream & Downstream Counts */}
-            <div className="text-[10px] space-y-1 pt-1 border-t border-slate-800 text-slate-400">
+            <div className={`text-[10px] space-y-1 pt-1 border-t ${isLight ? 'border-[#e2ddd1] text-[#475569]' : 'border-slate-800 text-slate-400'}`}>
               <div className="flex justify-between">
                 <span>Upstream Causes:</span>
-                <strong className="text-cyan-400">
+                <strong className={isLight ? 'text-[#0284c7]' : 'text-cyan-400'}>
                   {upstreamNodeIds.size > 0 ? `${upstreamNodeIds.size} nodes` : 'Direct Source'}
                 </strong>
               </div>
               <div className="flex justify-between">
                 <span>Downstream Cascade:</span>
-                <strong className="text-amber-400">
+                <strong className={isLight ? 'text-[#d97706]' : 'text-amber-400'}>
                   {downstreamNodeIds.size > 0 ? `${downstreamNodeIds.size} nodes` : 'Terminal Node'}
                 </strong>
               </div>
             </div>
           </div>
         ) : (
-          <div className="absolute top-14 right-4 z-30 max-w-xs w-72 rounded-xl border border-sky-500/50 bg-[#080d16]/95 p-3 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2 pointer-events-auto">
-            <div className="flex items-start justify-between gap-1.5 border-b border-slate-800 pb-1.5">
+          <div className={`absolute top-14 right-4 z-30 max-w-xs w-72 rounded-xl border p-3 shadow-2xl backdrop-blur-md text-xs font-mono space-y-2 pointer-events-auto ${
+            isLight
+              ? 'border-[#00A896] bg-white/98 text-[#0c1117]'
+              : 'border-sky-500/50 bg-[#080d16]/95 text-slate-200'
+          }`}>
+            <div className={`flex items-start justify-between gap-1.5 border-b pb-1.5 ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
               <div className="flex items-center gap-1.5 truncate">
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -1188,10 +1246,10 @@ export default function CausalGraph({
                   }}
                 />
                 <div className="truncate">
-                  <span className="font-bold text-slate-100 text-xs truncate block">
+                  <span className={`font-bold text-xs truncate block ${isLight ? 'text-[#0c1117]' : 'text-slate-100'}`}>
                     {selectedNode.label}
                   </span>
-                  <span className="text-[9px] text-slate-400 capitalize block">
+                  <span className={`text-[9px] capitalize block ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
                     {selectedNode.region.replace('_', ' ')} · {selectedNode.subType}
                   </span>
                 </div>
@@ -1201,7 +1259,7 @@ export default function CausalGraph({
                   ev.stopPropagation();
                   onSelectNode(null);
                 }}
-                className="text-slate-400 hover:text-slate-100 p-0.5 rounded hover:bg-slate-800"
+                className={`p-0.5 rounded cursor-pointer ${isLight ? 'text-[#475569] hover:text-[#0c1117] hover:bg-[#f4efe6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'}`}
                 title="Deselect / Clear corridor focus"
               >
                 ✕
@@ -1209,29 +1267,29 @@ export default function CausalGraph({
             </div>
 
             <div className="grid grid-cols-3 gap-1 text-center">
-              <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                <span className="text-[8px] text-slate-400 uppercase block">Health</span>
+              <div className={`p-1 rounded border ${isLight ? 'bg-[#faf7f2] border-[#e2ddd1]' : 'bg-slate-900 border-slate-800'}`}>
+                <span className={`text-[8px] uppercase block ${isLight ? 'text-[#64748b]' : 'text-slate-400'}`}>Health</span>
                 <span
                   className={`font-black text-xs ${
                     selectedNode.health < 50
-                      ? 'text-rose-400'
+                      ? isLight ? 'text-rose-600' : 'text-rose-400'
                       : selectedNode.health < 80
-                      ? 'text-amber-400'
-                      : 'text-emerald-400'
+                      ? isLight ? 'text-amber-600' : 'text-amber-400'
+                      : isLight ? 'text-emerald-600' : 'text-emerald-400'
                   }`}
                 >
                   {selectedNode.health}%
                 </span>
               </div>
-              <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                <span className="text-[8px] text-slate-400 uppercase block">State</span>
+              <div className={`p-1 rounded border ${isLight ? 'bg-[#faf7f2] border-[#e2ddd1]' : 'bg-slate-900 border-slate-800'}`}>
+                <span className={`text-[8px] uppercase block ${isLight ? 'text-[#64748b]' : 'text-slate-400'}`}>State</span>
                 <span
                   className={`font-black text-[9px] uppercase truncate block ${
                     selectedNode.criticality === 'critical'
-                      ? 'text-rose-400'
+                      ? isLight ? 'text-rose-600' : 'text-rose-400'
                       : selectedNode.criticality === 'warning'
-                      ? 'text-amber-400'
-                      : 'text-emerald-400'
+                      ? isLight ? 'text-amber-600' : 'text-amber-400'
+                      : isLight ? 'text-emerald-600' : 'text-emerald-400'
                   }`}
                 >
                   {selectedNode.reconciliationStatus
@@ -1239,15 +1297,15 @@ export default function CausalGraph({
                     : selectedNode.criticality}
                 </span>
               </div>
-              <div className="p-1 rounded bg-slate-900 border border-slate-800">
-                <span className="text-[8px] text-slate-400 uppercase block">Impact</span>
+              <div className={`p-1 rounded border ${isLight ? 'bg-[#faf7f2] border-[#e2ddd1]' : 'bg-slate-900 border-slate-800'}`}>
+                <span className={`text-[8px] uppercase block ${isLight ? 'text-[#64748b]' : 'text-slate-400'}`}>Impact</span>
                 <span
                   className={`font-black text-[9px] uppercase block ${
                     selectedNode.criticality === 'critical'
-                      ? 'text-rose-400'
+                      ? isLight ? 'text-rose-600' : 'text-rose-400'
                       : selectedNode.criticality === 'warning'
-                      ? 'text-amber-400'
-                      : 'text-slate-400'
+                      ? isLight ? 'text-amber-600' : 'text-amber-400'
+                      : isLight ? 'text-[#64748b]' : 'text-slate-400'
                   }`}
                 >
                   {selectedNode.criticality === 'critical' ? 'HIGH' : selectedNode.criticality === 'warning' ? 'MED' : 'LOW'}
@@ -1255,19 +1313,19 @@ export default function CausalGraph({
               </div>
             </div>
 
-            <div className="text-[10px] space-y-1 pt-1 border-t border-slate-800">
-              <div className="flex items-center justify-between text-slate-400">
+            <div className={`text-[10px] space-y-1 pt-1 border-t ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
+              <div className={`flex items-center justify-between ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
                 <span>Upstream Causes:</span>
-                <strong className="text-cyan-400">{upstreamNodeIds.size > 0 ? `${upstreamNodeIds.size} nodes` : 'Root'}</strong>
+                <strong className={isLight ? 'text-[#0284c7]' : 'text-cyan-400'}>{upstreamNodeIds.size > 0 ? `${upstreamNodeIds.size} nodes` : 'Root'}</strong>
               </div>
-              <div className="flex items-center justify-between text-slate-400">
+              <div className={`flex items-center justify-between ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
                 <span>Downstream Cascade:</span>
-                <strong className="text-amber-400">{downstreamNodeIds.size > 0 ? `${downstreamNodeIds.size} nodes` : 'None'}</strong>
+                <strong className={isLight ? 'text-[#d97706]' : 'text-amber-400'}>{downstreamNodeIds.size > 0 ? `${downstreamNodeIds.size} nodes` : 'None'}</strong>
               </div>
               {selectedNodeConnectedEdges.length > 0 && (
-                <div className="flex items-center justify-between text-slate-400 pt-0.5">
+                <div className={`flex items-center justify-between pt-0.5 ${isLight ? 'text-[#475569]' : 'text-slate-400'}`}>
                   <span>Peak Attention:</span>
-                  <strong className="text-amber-300">
+                  <strong className={isLight ? 'text-[#d97706]' : 'text-amber-300'}>
                     {Math.max(...selectedNodeConnectedEdges.map((e) => e.attention)).toFixed(2)}{' '}
                     {selectedNodeConnectedEdges.some((e) => e.deltaTrend === 'up') ? '↑' : '↓'}
                   </strong>

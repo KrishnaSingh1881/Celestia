@@ -7,6 +7,7 @@ import { intermediatePoint, initialBearingDeg, haversineDistanceKm, routeWaypoin
 import type { MissionRoute } from '../../types/mission';
 import type { FlightSimulationStatus } from '../../types/contracts';
 import { useMissionStore } from '../../store/useMissionStore';
+import { useThemeStore } from '../../store/useThemeStore';
 
 interface FlightMapProps {
   route?: MissionRoute;
@@ -82,6 +83,8 @@ export default function FlightMap({
   const storeRoute = useMissionStore((s) => s.route);
   const missionState = useMissionStore((s) => s.missionState);
   const isPlaying = useMissionStore((s) => s.isPlaying);
+  const theme = useThemeStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const route = propRoute ?? storeRoute;
 
@@ -125,7 +128,9 @@ export default function FlightMap({
 
   return (
     <div
-      className={`card p-0 overflow-hidden relative border border-slate-800 bg-[#0b0f17] select-none ${className}`}
+      className={`card p-0 overflow-hidden relative border transition-colors select-none ${
+        isLight ? 'border-[#e2ddd1] bg-[#f4efe6]' : 'border-slate-800 bg-[#0b0f17]'
+      } ${className}`}
       style={{ height }}
     >
       <MapContainer center={center} zoom={9} scrollWheelZoom className="w-full h-full z-0">
@@ -164,45 +169,51 @@ export default function FlightMap({
       {showOverlay && (
         <>
           {/* Tactical Header Badge */}
-          <div className="absolute top-3 left-3 z-[400] bg-slate-950/85 backdrop-blur-md rounded-xl border border-slate-800/90 px-3.5 py-2 shadow-lg max-w-[280px]">
+          <div className={`absolute top-3 left-3 z-[400] backdrop-blur-md rounded-xl border px-3.5 py-2 shadow-lg max-w-[280px] transition-colors ${
+            isLight
+              ? 'bg-white/95 border-[#e2ddd1] text-[#0c1117]'
+              : 'bg-slate-950/85 border-slate-800/90 text-slate-200'
+          }`}>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+              <span className={`text-[10px] font-black uppercase tracking-wider ${isLight ? 'text-amber-800' : 'text-amber-400'}`}>
                 2D Tactical Mission Map
               </span>
             </div>
-            <div className="text-[11px] font-bold text-slate-200 truncate">
+            <div className={`text-[11px] font-bold truncate ${isLight ? 'text-[#0c1117]' : 'text-slate-200'}`}>
               {route.sourceLabel.split(' ')[0]} → {route.destLabel.split(' ')[0]}
             </div>
-            <div className="text-[10px] text-slate-400 font-mono mt-0.5 flex items-center gap-2">
-              <span>Phase: <strong className="text-emerald-400">{phaseName}</strong></span>
+            <div className={`text-[10px] font-mono mt-0.5 flex items-center gap-2 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              <span>Phase: <strong className={isLight ? 'text-emerald-800' : 'text-emerald-400'}>{phaseName}</strong></span>
               <span>·</span>
               <span>{distanceKm.toFixed(0)} km</span>
             </div>
           </div>
 
           {/* Map Layer Controls */}
-          <div className="absolute top-3 right-3 z-[400] flex items-center gap-1.5 bg-slate-950/85 backdrop-blur-md p-1 rounded-xl border border-slate-800/90 shadow-lg">
+          <div className={`absolute top-3 right-3 z-[400] flex items-center gap-1.5 backdrop-blur-md p-1 rounded-xl border shadow-lg transition-colors ${
+            isLight ? 'bg-white/95 border-[#e2ddd1]' : 'bg-slate-950/85 border-slate-800/90'
+          }`}>
             {(['tactical', 'satellite', 'street', 'terrain'] as MapStyle[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setStyle(s)}
                 className={`text-[10px] font-bold px-2 py-1 rounded-lg capitalize transition-colors ${
                   style === s
-                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? isLight ? 'bg-amber-500 text-white shadow-xs' : 'bg-amber-500 text-slate-950 shadow-xs'
+                    : isLight ? 'text-slate-600 hover:text-[#0c1117]' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {s}
               </button>
             ))}
-            <div className="w-[1px] h-4 bg-slate-800 mx-0.5" />
+            <div className={`w-[1px] h-4 mx-0.5 ${isLight ? 'bg-slate-300' : 'bg-slate-800'}`} />
             <button
               onClick={() => setFollow((f) => !f)}
               className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 transition-colors ${
                 follow
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? isLight ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                  : isLight ? 'text-slate-600 hover:text-[#0c1117]' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Locate size={11} /> {follow ? 'LOCK' : 'FREE'}
@@ -210,41 +221,47 @@ export default function FlightMap({
           </div>
 
           {/* Live Flight HUD Pill */}
-          <div className="absolute bottom-3 right-3 z-[400] bg-slate-950/90 backdrop-blur-md rounded-xl p-3 border border-slate-800/90 text-slate-200 min-w-[210px] shadow-2xl">
-            <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-800">
-              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <Compass size={11} className="text-amber-400" />
+          <div className={`absolute bottom-3 right-3 z-[400] backdrop-blur-md rounded-xl p-3 border min-w-[210px] shadow-2xl transition-colors ${
+            isLight
+              ? 'bg-white/95 border-[#e2ddd1] text-[#0c1117]'
+              : 'bg-slate-950/90 border-slate-800/90 text-slate-200'
+          }`}>
+            <div className={`flex items-center justify-between pb-1.5 mb-2 border-b ${isLight ? 'border-[#e2ddd1]' : 'border-slate-800'}`}>
+              <span className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                <Compass size={11} className={isLight ? 'text-amber-800' : 'text-amber-400'} />
                 Kinematics &amp; Environment
               </span>
               <span
                 className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
-                  isPlaying ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                  isPlaying
+                    ? isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/20 text-emerald-400'
+                    : isLight ? 'bg-amber-100 text-amber-800' : 'bg-amber-500/20 text-amber-400'
                 }`}
               >
                 {isPlaying ? 'TRACKING' : 'PAUSED'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-              <span className="text-slate-400 font-medium">Altitude:</span>
-              <span className="font-mono font-bold text-right text-slate-100">{altitudeFt.toLocaleString()} ft</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Altitude:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-[#0c1117]' : 'text-slate-100'}`}>{altitudeFt.toLocaleString()} ft</span>
 
-              <span className="text-slate-400 font-medium">Airspeed:</span>
-              <span className="font-mono font-bold text-right text-slate-100">{airspeedKmh} km/h</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Airspeed:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-[#0c1117]' : 'text-slate-100'}`}>{airspeedKmh} km/h</span>
 
-              <span className="text-slate-400 font-medium">Heading:</span>
-              <span className="font-mono font-bold text-amber-400 text-right">{bearingDeg.toFixed(0)}°</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Heading:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-amber-800' : 'text-amber-400'}`}>{bearingDeg.toFixed(0)}°</span>
 
-              <span className="text-slate-400 font-medium">Remaining:</span>
-              <span className="font-mono font-bold text-right text-slate-100">{remainingKm.toFixed(1)} km</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Remaining:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-[#0c1117]' : 'text-slate-100'}`}>{remainingKm.toFixed(1)} km</span>
 
-              <span className="text-slate-400 font-medium">Amb Temp:</span>
-              <span className="font-mono font-bold text-right text-cyan-300">{ambientTempC}°C</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Amb Temp:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-[#00a896]' : 'text-cyan-300'}`}>{ambientTempC}°C</span>
 
-              <span className="text-slate-400 font-medium">Amb Press:</span>
-              <span className="font-mono font-bold text-right text-cyan-300">{ambientPressureHpa} hPa</span>
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Amb Press:</span>
+              <span className={`font-mono font-bold text-right ${isLight ? 'text-[#00a896]' : 'text-cyan-300'}`}>{ambientPressureHpa} hPa</span>
 
-              <span className="text-slate-400 font-medium">Coordinates:</span>
-              <span className="font-mono text-[9px] text-right text-slate-400 col-span-2 mt-0.5">
+              <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>Coordinates:</span>
+              <span className={`font-mono text-[9px] text-right col-span-2 mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                 {uavPosition.lat.toFixed(4)}°N, {uavPosition.lon.toFixed(4)}°E
               </span>
             </div>
@@ -253,15 +270,17 @@ export default function FlightMap({
       )}
 
       {/* Bottom status bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-[300] flex items-center justify-between px-3 py-1 bg-slate-950/95 border-t border-slate-800/80 text-[9px] text-slate-400 font-mono">
+      <div className={`absolute bottom-0 left-0 right-0 z-[300] flex items-center justify-between px-3 py-1 border-t text-[9px] font-mono transition-colors ${
+        isLight ? 'bg-white/95 border-[#e2ddd1] text-slate-600' : 'bg-slate-950/95 border-slate-800/80 text-slate-400'
+      }`}>
         <span className="flex items-center gap-1.5">
-          <Navigation size={10} className="text-amber-400" /> Great-Circle Geodesic Flight Route · WGS-84 Interpolation
+          <Navigation size={10} className={isLight ? 'text-amber-800' : 'text-amber-400'} /> Great-Circle Geodesic Flight Route · WGS-84 Interpolation
         </span>
         <span className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-slate-400">
-            <Wind size={10} className="text-cyan-400" /> Wind: 14 kts @ 245°
+          <span className={`flex items-center gap-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            <Wind size={10} className={isLight ? 'text-[#00a896]' : 'text-cyan-400'} /> Wind: 14 kts @ 245°
           </span>
-          <span className="text-slate-600">|</span>
+          <span className={isLight ? 'text-slate-300' : 'text-slate-600'}>|</span>
           <span className="flex items-center gap-1">
             <Maximize2 size={10} /> Leaflet Tactical
           </span>

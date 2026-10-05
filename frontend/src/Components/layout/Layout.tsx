@@ -5,10 +5,13 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import MissionMiniPlayer from '../mission/MissionMiniPlayer';
 import { useMissionStore } from '../../store/useMissionStore';
+import { useThemeStore } from '../../store/useThemeStore';
 
 export default function Layout() {
   const location = useLocation();
   const tick = useMissionStore((s) => s.tick);
+  const theme = useThemeStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   // Global continuous deterministic mission clock ticker
   useEffect(() => {
@@ -32,14 +35,14 @@ export default function Layout() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-screen text-slate-100 bg-[#070a0f] overflow-hidden select-none">
+      <div className={`flex h-screen overflow-hidden select-none transition-colors duration-200 ${isLight ? 'text-[#0c1117] bg-[#faf7f2]' : 'text-slate-100 bg-[#070a0f]'}`}>
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <TopBar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#070a0f]">
+          <main className={`flex-1 overflow-y-auto p-4 md:p-6 transition-colors duration-200 ${isLight ? 'bg-[#faf7f2]' : 'bg-[#070a0f]'}`}>
             <Suspense
               fallback={
-                <div className="flex items-center justify-center h-48 text-slate-400 font-mono text-xs">
+                <div className={`flex items-center justify-center h-48 font-mono text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   Loading mission subsystem module...
                 </div>
               }

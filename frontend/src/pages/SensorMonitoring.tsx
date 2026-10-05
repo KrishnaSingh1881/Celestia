@@ -6,6 +6,7 @@ import {
   RadioIcon,
 } from '@hugeicons/core-free-icons';
 import { useMissionStore } from '../store/useMissionStore';
+import { useThemeStore } from '../store/useThemeStore';
 import { buildCausalTopology } from '../lib/causalGraphData';
 import CausalGraph from '../Components/graph/CausalGraph';
 import AffectedComponents from '../Components/graph/AffectedComponents';
@@ -23,6 +24,8 @@ import type {
 export default function SensorMonitoring() {
   const missionState = useMissionStore((s) => s.missionState);
   const appliedInterventions = useMissionStore((s) => s.appliedInterventions);
+  const theme = useThemeStore((s) => s.theme);
+  const isLight = theme === 'light';
   const { scenarioId, timeSeconds } = missionState;
 
   // Build authentic Celestia causal topology
@@ -121,29 +124,41 @@ export default function SensorMonitoring() {
       className="space-y-4 pb-20 select-none"
     >
       {/* 1. Header & Active Cascade Banner */}
-      <div className="rounded-2xl border border-slate-800 bg-[#070b13] p-4 shadow-xl flex flex-col gap-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+      <div className={`rounded-2xl border p-4 shadow-xl flex flex-col gap-3 transition-colors ${
+        isLight ? 'border-[#e2ddd1] bg-white text-[#0c1117] shadow-md' : 'border-slate-800 bg-[#070b13] text-slate-100 shadow-xl'
+      }`}>
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-2 border-b pb-3 ${
+          isLight ? 'border-[#e2ddd1]' : 'border-slate-800/80'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
-                <HugeiconsIcon icon={RadioIcon} size={18} className="text-amber-400" />
+              <span className={`text-sm font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                isLight ? 'text-[#0c1117]' : 'text-slate-100'
+              }`}>
+                <HugeiconsIcon icon={RadioIcon} size={18} className={isLight ? 'text-amber-600' : 'text-amber-400'} />
                 Causal Intelligence Workspace
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+                isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              }`}>
                 Diagnosis + Prognosis
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
               Live directed causal network mapping evidence, root causes, physical subsystems, sensors, failure states, and mission consequences.
             </p>
           </div>
 
           <div className="flex items-center gap-2 font-mono text-xs self-start md:self-auto">
-            <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
-              Scenario: <strong className="text-amber-400 capitalize">{scenarioId}</strong>
+            <span className={`px-2.5 py-1 rounded-lg border ${
+              isLight ? 'bg-[#faf7f2] border-[#e2ddd1] text-slate-700' : 'bg-slate-900 border-slate-800 text-slate-400'
+            }`}>
+              Scenario: <strong className={isLight ? 'text-amber-800 capitalize' : 'text-amber-400 capitalize'}>{scenarioId}</strong>
             </span>
-            <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
-              Timeline: <strong className="text-slate-200">{timeSeconds.toFixed(1)}s</strong>
+            <span className={`px-2.5 py-1 rounded-lg border ${
+              isLight ? 'bg-[#faf7f2] border-[#e2ddd1] text-slate-700' : 'bg-slate-900 border-slate-800 text-slate-400'
+            }`}>
+              Timeline: <strong className={isLight ? 'text-[#0c1117]' : 'text-slate-200'}>{timeSeconds.toFixed(1)}s</strong>
             </span>
           </div>
         </div>
@@ -152,7 +167,15 @@ export default function SensorMonitoring() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${cascadeNarrative.severity === 'emergency' || cascadeNarrative.severity === 'critical' ? 'bg-rose-500 animate-pulse' : cascadeNarrative.severity === 'warning' ? 'bg-amber-400 animate-pulse' : cascadeNarrative.severity === 'sensor_fault' ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
-            <span className={`font-black uppercase tracking-wide text-xs ${cascadeNarrative.severity === 'emergency' || cascadeNarrative.severity === 'critical' ? 'text-rose-400' : cascadeNarrative.severity === 'warning' ? 'text-amber-400' : cascadeNarrative.severity === 'sensor_fault' ? 'text-cyan-400' : 'text-emerald-400'}`}>
+            <span className={`font-black uppercase tracking-wide text-xs ${
+              cascadeNarrative.severity === 'emergency' || cascadeNarrative.severity === 'critical'
+                ? isLight ? 'text-rose-700' : 'text-rose-400'
+                : cascadeNarrative.severity === 'warning'
+                ? isLight ? 'text-amber-800' : 'text-amber-400'
+                : cascadeNarrative.severity === 'sensor_fault'
+                ? isLight ? 'text-cyan-800' : 'text-cyan-400'
+                : isLight ? 'text-emerald-800' : 'text-emerald-400'
+            }`}>
               {cascadeNarrative.title}
             </span>
           </div>
@@ -161,11 +184,13 @@ export default function SensorMonitoring() {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-bold">
             {cascadeNarrative.flow.map((step, idx) => (
               <React.Fragment key={idx}>
-                <span className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 whitespace-nowrap shadow-xs">
+                <span className={`px-2 py-0.5 rounded-md border whitespace-nowrap shadow-2xs ${
+                  isLight ? 'bg-[#faf7f2] border-[#e2ddd1] text-[#0c1117]' : 'bg-slate-900 border-slate-800 text-slate-300'
+                }`}>
                   {step}
                 </span>
                 {idx < cascadeNarrative.flow.length - 1 && (
-                  <HugeiconsIcon icon={ArrowRight01Icon} size={12} className="text-slate-600 shrink-0" />
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={12} className={`shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-600'}`} />
                 )}
               </React.Fragment>
             ))}
