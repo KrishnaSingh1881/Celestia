@@ -1,3 +1,12 @@
+---
+title: Celestia UAV Engine Digital Twin
+emoji: 🛩️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
+
 <div align="center">
 
 # Celestia (SIH26054)
